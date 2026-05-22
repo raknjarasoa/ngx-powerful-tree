@@ -1,0 +1,176 @@
+<div class="playground-layout">
+  
+  <!-- Sleek Modern Branding Header -->
+  <header class="playground-header">
+    <div class="logo-area">
+      <span class="logo-dot"></span>
+      <h1>ngx-powerful-tree <span class="badge">v21.2.0</span></h1>
+    </div>
+    <p class="tagline">Enterprise-grade, high-performance virtualized tree component with native HTML5 drag & drop.</p>
+  </header>
+
+  <div class="playground-grid">
+    
+    <!-- Left Column: Controls & Stats -->
+    <aside class="playground-controls">
+      <div class="control-card">
+        <h2>Control Panel</h2>
+        
+        <div class="control-group">
+          <label for="search-input">Search Tree (Fluid)</label>
+          <div class="search-wrapper">
+            <input 
+              id="search-input"
+              type="text" 
+              placeholder="Type to filter & highlight..." 
+              (input)="onSearchChange($event)"
+              [value]="searchQuery()" 
+              class="control-input" />
+            @if (searchQuery()) {
+              <button class="clear-search" (click)="searchQuery.set('')" title="Clear search">×</button>
+            }
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Scale Benchmarks (Generate Items)</label>
+          <div class="scale-buttons">
+            <button [class.active]="totalItemCount() === 1000" (click)="changeItemCount(1000)">1,000</button>
+            <button [class.active]="totalItemCount() === 10000" (click)="changeItemCount(10000)">10,000</button>
+            <button [class.active]="totalItemCount() === 50000" (click)="changeItemCount(50000)">50,000</button>
+            <button [class.active]="totalItemCount() === 100000" (click)="changeItemCount(100000)">100,000+</button>
+          </div>
+        </div>
+
+        <div class="control-group toggle-group">
+          <span>Selection Mode</span>
+          <button class="toggle-btn" [class.enabled]="multiSelect()" (click)="toggleMultiSelect()">
+            {{ multiSelect() ? 'Multi-Select (Enabled)' : 'Single-Select' }}
+          </button>
+        </div>
+
+        <div class="control-group">
+          <button class="action-btn-overlay" (click)="toggleOverlay()">
+            {{ isOverlayOpen() ? 'Close Overlay Tree' : 'Open Tree in Overlay/Dialog' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Benchmarks Card -->
+      <div class="control-card stats-card">
+        <h2>Performance Metrics</h2>
+        <div class="metric-row">
+          <span class="metric-label">Dataset Size:</span>
+          <span class="metric-value">{{ totalItemCount() | number }} items</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Load Time:</span>
+          <span class="metric-value accent-green">{{ benchmarkDuration() }} ms</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">FPS Capability:</span>
+          <span class="metric-value">60 FPS (Virtualized)</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Change Detection:</span>
+          <span class="metric-value accent-blue">Zoneless (Experimental)</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Selected Count:</span>
+          <span class="metric-value">{{ selectedIds().length }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Focused Node ID:</span>
+          <span class="metric-value focused-id">{{ focusedId() || 'None' }}</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Column: The Primary Tree Container -->
+    <main class="playground-tree-container">
+      <div class="tree-card">
+        <div class="tree-card-header">
+          <div class="tree-card-title">
+            <span class="tree-status-dot"></span>
+            <h2>Active Directory</h2>
+          </div>
+          <div class="tree-actions">
+            <button class="outline-btn" (click)="primaryTree.addRootFolder()" title="Add folder at root">
+              + New Root Folder
+            </button>
+            <button class="outline-btn" (click)="primaryTree.store.expandAll()" title="Expand all">
+              Expand All
+            </button>
+            <button class="outline-btn" (click)="primaryTree.store.collapseAll()" title="Collapse all">
+              Collapse All
+            </button>
+          </div>
+        </div>
+
+        <div class="tree-wrapper">
+          <ngx-powerful-tree
+            #primaryTree
+            [items]="treeItems()"
+            [rootIds]="treeRootIds()"
+            [searchQuery]="searchQuery()"
+            [multiSelect]="multiSelect()"
+            (itemMoved)="onItemMoved($event)"
+            (itemRenamed)="onItemRenamed($event)"
+            (itemAdded)="onItemAdded($event)"
+            (itemDeleted)="onItemDeleted($event)"
+            (selectionChanged)="onSelectionChanged($event)"
+            (focusedChanged)="onFocusedChanged($event)">
+          </ngx-powerful-tree>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Column: Real-time Event Logger Console -->
+    <aside class="playground-logs">
+      <div class="control-card logs-card">
+        <div class="logs-header">
+          <h2>Console Log Events</h2>
+          <button class="clear-logs-btn" (click)="clearLogs()">Clear</button>
+        </div>
+        <div class="logs-console">
+          @for (log of logs(); track $index) {
+            <div class="log-entry">
+              {{ log }}
+            </div>
+          } @empty {
+            <div class="logs-empty">Waiting for interactions... Click, drag-n-drop, rename, delete or add nodes to view events in real-time.</div>
+          }
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Overlay/Dialog Presentation Demo -->
+  @if (isOverlayOpen()) {
+    <div class="overlay-backdrop" (click)="toggleOverlay()">
+      <div class="overlay-modal" (click)="$event.stopPropagation()">
+        <header class="overlay-modal-header">
+          <div>
+            <h3>Overlay Mounting Demo</h3>
+            <p>Tree rendering in a floating popover system</p>
+          </div>
+          <button class="close-overlay" (click)="toggleOverlay()">×</button>
+        </header>
+        
+        <!-- Nested tree instance in overlay with same dataset but independent state -->
+        <div class="overlay-tree-wrapper">
+          <ngx-powerful-tree
+            [items]="treeItems()"
+            [rootIds]="treeRootIds()"
+            [searchQuery]="searchQuery()"
+            [multiSelect]="false">
+          </ngx-powerful-tree>
+        </div>
+        
+        <footer class="overlay-modal-footer">
+          <p>This floating tree instance uses the exact same 100k+ data registry but has its own independent selection, focus, and expansion states.</p>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

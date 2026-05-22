@@ -1,0 +1,45 @@
+export interface NgxTreeItem<T = any> {
+  id: string;
+  name: string;
+  isFolder: boolean;
+  children?: string[]; // IDs of children (only for folders)
+  data?: T; // Custom optional payload
+}
+
+export type DragPosition = 'before' | 'after' | 'inside' | null;
+
+export interface DragState {
+  draggedItemId: string | null;
+  dragOverItemId: string | null;
+  position: DragPosition;
+}
+
+/**
+ * Proxy item representing a node in the tree at runtime.
+ * We use this proxy to avoid mutating the original user items.
+ */
+export interface NgxTreeProxyItem<T = any> {
+  id: string;
+  name: string;
+  isFolder: boolean;
+  parentId: string | null;
+  children: string[];
+  depth: number;
+  expanded: boolean;
+  selected: boolean;
+  focused: boolean;
+  editing: boolean;
+  matchesSearch: boolean;
+  data?: T;
+}
+
+export interface NgxTreeState<T = any> {
+  items: Record<string, NgxTreeItem<T>>;
+  rootIds: string[];
+  expandedItems: Set<string>;
+  selectedItems: Set<string>;
+  focusedItemId: string | null;
+  editingItemId: string | null;
+  searchQuery: string;
+  dragState: DragState;
+}
