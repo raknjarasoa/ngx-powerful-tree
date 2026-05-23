@@ -8,7 +8,7 @@ import {
   output,
 } from '@angular/core';
 import { NgxTreeStore } from './ngx-tree.store';
-import { NgxTreeProxyItem, DragPosition } from './ngx-tree.types';
+import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
 
 @Directive({
   selector: '[ngxTreeRow]',
@@ -17,6 +17,7 @@ import { NgxTreeProxyItem, DragPosition } from './ngx-tree.types';
 export class NgxTreeRowDirective {
   private el = inject(ElementRef);
   private store = inject(NgxTreeStore);
+  private hoverTimer: number | null = null;
 
   // Modern Signal Inputs
   item = input.required<NgxTreeProxyItem>();
@@ -161,10 +162,23 @@ export class NgxTreeRowDirective {
     }
 
     this.store.setDragState(draggedId, this.item().id, position);
+
+    // Spring-loaded folder expansion: if dragging over a folder and position is inside, auto-expand it after 800ms
+    if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
+      if (!this.hoverTimer) {
+        this.hoverTimer = setTimeout(() => {
+          this.store.setExpanded(this.item().id, true);
+          this.hoverTimer = null;
+        }, 800);
+      }
+    } else {
+      this.clearHoverTimer();
+    }
   }
 
   @HostListener('dragleave', ['$event'])
   onDragLeave(event: DragEvent) {
+    this.clearHoverTimer();
     const dragState = this.store.dragState();
     if (dragState.dragOverItemId === this.item().id) {
       this.store.setDragState(dragState.draggedItemId, null, null);
@@ -174,6 +188,7 @@ export class NgxTreeRowDirective {
   @HostListener('drop', ['$event'])
   onDrop(event: DragEvent) {
     event.preventDefault();
+    this.clearHoverTimer();
     
     const dragState = this.store.dragState();
     const draggedId = dragState.draggedItemId;
@@ -196,10 +211,18 @@ export class NgxTreeRowDirective {
 
   @HostListener('dragend', ['$event'])
   onDragEnd(event: DragEvent) {
+    this.clearHoverTimer();
     this.store.clearDragState();
   }
 
   // --- Helper Methods ---
+
+  private clearHoverTimer() {
+    if (this.hoverTimer) {
+      clearTimeout(this.hoverTimer);
+      this.hoverTimer = null;
+    }
+  }
 
   private isDragOverState(pos: DragPosition): boolean {
     const dragState = this.store.dragState();

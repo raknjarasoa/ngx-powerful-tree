@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, signal, effect, inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
 
 @Component({
@@ -9,7 +9,9 @@ import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  private platformId = inject(PLATFORM_ID);
+
   // Tree Inputs Signals
   treeItems = signal<Record<string, NgxTreeItem>>({});
   treeRootIds = signal<string[]>([]);
@@ -23,9 +25,44 @@ export class AppComponent implements OnInit {
   focusedId = signal<string | null>(null);
   isOverlayOpen = signal<boolean>(false);
   logs = signal<string[]>([]);
+  currentFps = signal<number>(60);
+  private animFrameId: number | null = null;
 
   ngOnInit() {
     this.loadMockTree(this.totalItemCount());
+    this.startFpsTracker();
+  }
+
+  ngOnDestroy() {
+    if (this.animFrameId && isPlatformBrowser(this.platformId)) {
+      cancelAnimationFrame(this.animFrameId);
+    }
+  }
+
+  private startFpsTracker() {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+    let lastTime = performance.now();
+    let frameCount = 0;
+
+    const loop = () => {
+      frameCount++;
+      const now = performance.now();
+      const delta = now - lastTime;
+
+      if (delta >= 1000) {
+        // Average frame rate calculation capped at 60 FPS
+        const computedFps = Math.min(60, Math.round((frameCount * 1000) / delta));
+        this.currentFps.set(computedFps);
+        frameCount = 0;
+        lastTime = now;
+      }
+
+      this.animFrameId = requestAnimationFrame(loop);
+    };
+
+    this.animFrameId = requestAnimationFrame(loop);
   }
 
   // Generate 100k+ elements recursively on the fly and track loading time

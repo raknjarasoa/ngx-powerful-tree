@@ -91,18 +91,55 @@
   border: 1px dashed var(--ngx-tree-action-color);
 }
 
-/* HTML5 Drag Target indicators */
-.ngx-tree-row-wrapper.ngx-tree-row--drag-over-before {
-  border-top: 2px solid var(--ngx-tree-drag-border) !important;
+/* Base style for fluid drag indicator overlay (prevents row dimension shifts) */
+.ngx-tree-row-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background-color: var(--ngx-tree-drag-border);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.1s ease;
 }
 
-.ngx-tree-row-wrapper.ngx-tree-row--drag-over-after {
-  border-bottom: 2px solid var(--ngx-tree-drag-border) !important;
+/* Fluid Drag Target indicators positioned absolutely */
+.ngx-tree-row-wrapper.ngx-tree-row--drag-over-before::after {
+  top: 0;
+  opacity: 1;
+}
+
+.ngx-tree-row-wrapper.ngx-tree-row--drag-over-after::after {
+  bottom: 0;
+  opacity: 1;
 }
 
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
   background-color: var(--ngx-tree-selected-bg) !important;
   box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Nesting Guidelines using Variable-Driven Depth */
+.ngx-tree-row-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Calculate guideline position relative to dynamic --ngx-tree-depth variable */
+  left: calc(1.25rem * (var(--ngx-tree-depth) - 1) + 1.25rem);
+  width: 1px;
+  background-color: var(--ngx-tree-border);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Hide lines for root elements (depth 0) to keep the layout extremely clean */
+.ngx-tree-row-wrapper[style*="--ngx-tree-depth: 0"]::before,
+.ngx-tree-row-wrapper[style*="--ngx-tree-depth:0"]::before {
+  display: none;
 }
 
 /* Row Content Layout */

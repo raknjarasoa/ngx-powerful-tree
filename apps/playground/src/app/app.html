@@ -69,11 +69,13 @@
         </div>
         <div class="metric-row">
           <span class="metric-label">FPS Capability:</span>
-          <span class="metric-value">60 FPS (Virtualized)</span>
+          <span class="metric-value" [class.accent-green]="currentFps() >= 55" [class.accent-yellow]="currentFps() < 55 && currentFps() >= 30" [class.accent-red]="currentFps() < 30">
+            {{ currentFps() }} FPS (Live)
+          </span>
         </div>
         <div class="metric-row">
           <span class="metric-label">Change Detection:</span>
-          <span class="metric-value accent-blue">Zoneless (Experimental)</span>
+          <span class="metric-value accent-blue">Zoneless (Stable)</span>
         </div>
         <div class="metric-row">
           <span class="metric-label">Selected Count:</span>
