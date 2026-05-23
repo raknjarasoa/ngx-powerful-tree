@@ -17,7 +17,7 @@ import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
 export class NgxTreeRowDirective {
   private el = inject(ElementRef);
   private store = inject(NgxTreeStore);
-  private hoverTimer: number | null = null;
+  private hoverTimer: any = null;
 
   // Modern Signal Inputs
   item = input.required<NgxTreeProxyItem>();
