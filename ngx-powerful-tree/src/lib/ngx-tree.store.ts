@@ -1,17 +1,6 @@
 import { computed } from '@angular/core';
-import {
-  signalStore,
-  withState,
-  withComputed,
-  withMethods,
-  patchState,
-} from '@ngrx/signals';
-import {
-  NgxTreeItem,
-  NgxTreeProxyItem,
-  NgxTreeState,
-  DragPosition,
-} from './ngx-tree.types';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
+import { NgxTreeItem, NgxTreeProxyItem, NgxTreeState, DragPosition } from './ngx-tree.types';
 
 const initialState: NgxTreeState = {
   items: {},
@@ -194,9 +183,7 @@ export const NgxTreeStore = signalStore(
       },
 
       selectItem(id: string, multiSelect = false) {
-        const selected = new Set<string>(
-          multiSelect ? store.selectedItems() : [],
-        );
+        const selected = new Set<string>(multiSelect ? store.selectedItems() : []);
         if (multiSelect && selected.has(id)) {
           selected.delete(id);
         } else {
@@ -239,9 +226,7 @@ export const NgxTreeStore = signalStore(
         } else {
           const parentItem = currentItems[parentId];
           if (parentItem && parentItem.isFolder) {
-            const children = parentItem.children
-              ? [...parentItem.children]
-              : [];
+            const children = parentItem.children ? [...parentItem.children] : [];
             children.push(newItem.id);
             currentItems[parentId] = { ...parentItem, children };
           }
@@ -327,12 +312,7 @@ export const NgxTreeStore = signalStore(
 
       moveItem(draggedId: string, targetId: string, position: DragPosition) {
         const currentItems = { ...store.items() };
-        if (
-          !currentItems[draggedId] ||
-          !currentItems[targetId] ||
-          draggedId === targetId
-        )
-          return;
+        if (!currentItems[draggedId] || !currentItems[targetId] || draggedId === targetId) return;
 
         // Prevent dragging an item into its own descendant!
         const isDescendant = (parent: string, child: string): boolean => {
@@ -353,9 +333,7 @@ export const NgxTreeStore = signalStore(
           if (sourceParent && sourceParent.children) {
             currentItems[sourceParentId] = {
               ...sourceParent,
-              children: sourceParent.children.filter(
-                (cId) => cId !== draggedId,
-              ),
+              children: sourceParent.children.filter((cId) => cId !== draggedId),
             };
           }
         } else {
@@ -410,7 +388,7 @@ export const NgxTreeStore = signalStore(
       setDragState(
         draggedItemId: string | null,
         dragOverItemId: string | null,
-        position: DragPosition,
+        position: DragPosition
       ) {
         patchState(store, {
           dragState: { draggedItemId, dragOverItemId, position },
@@ -427,5 +405,5 @@ export const NgxTreeStore = signalStore(
         });
       },
     };
-  }),
+  })
 );

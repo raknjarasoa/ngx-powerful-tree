@@ -87,7 +87,21 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     const folderPool = [...rootIds];
-    const extensions = ['pdf', 'txt', 'csv', 'json', 'png', 'ts', 'js', 'html', 'css', 'zip', 'md', 'mp4', 'xlsx'];
+    const extensions = [
+      'pdf',
+      'txt',
+      'csv',
+      'json',
+      'png',
+      'ts',
+      'js',
+      'html',
+      'css',
+      'zip',
+      'md',
+      'mp4',
+      'xlsx',
+    ];
 
     for (let i = 1; i <= count; i++) {
       const isFolder = Math.random() < 0.15; // 15% folders
@@ -126,9 +140,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // --- Output Listeners ---
 
   onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
-    this.addLog(
-      `[Move] Node "${event.draggedId}" moved ${event.position} "${event.targetId}"`
-    );
+    this.addLog(`[Move] Node "${event.draggedId}" moved ${event.position} "${event.targetId}"`);
   }
 
   onItemRenamed(event: { id: string; name: string }) {

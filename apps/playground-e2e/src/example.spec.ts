@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('ngx-powerful-tree Playground E2E Tests', () => {
-  
   test.beforeEach(async ({ page }) => {
     // Navigate to playground home
     await page.goto('/');
@@ -10,18 +9,20 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
   test('should load playground header and performance stats', async ({ page }) => {
     // Check main title
     await expect(page.locator('h1')).toContainText('ngx-powerful-tree');
-    
+
     // Check loading metrics
     const statsCard = page.locator('.stats-card');
     await expect(statsCard).toContainText('100,000 items');
     await expect(statsCard).toContainText('Zoneless');
   });
 
-  test('should virtualize rendering and only mount a fraction of 100k items in the DOM', async ({ page }) => {
+  test('should virtualize rendering and only mount a fraction of 100k items in the DOM', async ({
+    page,
+  }) => {
     // Out of 100k items, only a few visible rows should be rendered in the DOM viewport
     const rows = page.locator('.ngx-tree-row');
     const count = await rows.count();
-    
+
     // The default viewport is around 400px height, showing roughly 10-25 items at a time
     expect(count).toBeGreaterThan(0);
     expect(count).toBeLessThan(100); // Definitely virtualized!
@@ -30,13 +31,13 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
   test('should perform fluid search filtering and highlight matching items', async ({ page }) => {
     const searchInput = page.locator('#search-input');
     await searchInput.fill('Collection_10');
-    
+
     // Allow search indexing to update the reactive state
     await page.waitForTimeout(500);
 
     const matches = page.locator('.ngx-tree-name--matched, .ngx-tree-item-name--matched');
     const matchCount = await matches.count();
-    
+
     // We expect some highlighted matches containing 'Collection_10'
     expect(matchCount).toBeGreaterThan(0);
     await expect(matches.first()).toContainText('Collection_10');
@@ -46,13 +47,13 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     // 1. Focus the first tree item
     const firstRow = page.locator('.ngx-tree-row').first();
     await firstRow.click();
-    
+
     // Assert focused class is attached
     await expect(firstRow).toHaveClass(/ngx-tree-row--focused/);
-    
+
     // 2. Press ArrowDown to transition focus
     await page.keyboard.press('ArrowDown');
-    
+
     // The second row should now be focused
     const secondRow = page.locator('.ngx-tree-row').nth(1);
     await expect(secondRow).toHaveClass(/ngx-tree-row--focused/);
@@ -94,7 +95,7 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     // 1. Hover first row and click rename button
     const firstRow = page.locator('.ngx-tree-row').first();
     await firstRow.hover();
-    
+
     const renameBtn = firstRow.locator('button[title="Rename"]');
     await renameBtn.click();
 

@@ -120,7 +120,7 @@ export class NgxTreeRowDirective {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', this.item().id);
     }
-    
+
     // Set global store drag state
     this.store.setDragState(this.item().id, null, null);
   }
@@ -189,7 +189,7 @@ export class NgxTreeRowDirective {
   onDrop(event: DragEvent) {
     event.preventDefault();
     this.clearHoverTimer();
-    
+
     const dragState = this.store.dragState();
     const draggedId = dragState.draggedItemId;
     const position = dragState.position;

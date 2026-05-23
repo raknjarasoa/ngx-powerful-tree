@@ -12,9 +12,19 @@ describe('NgxTreeStore', () => {
   //     - Grandchild A2a (File)
   // Root B (File)
   const mockItems: Record<string, NgxTreeItem> = {
-    'root-a': { id: 'root-a', name: 'Root A Folder', isFolder: true, children: ['child-a1', 'child-a2'] },
+    'root-a': {
+      id: 'root-a',
+      name: 'Root A Folder',
+      isFolder: true,
+      children: ['child-a1', 'child-a2'],
+    },
     'child-a1': { id: 'child-a1', name: 'Child A1 File', isFolder: false },
-    'child-a2': { id: 'child-a2', name: 'Child A2 Folder', isFolder: true, children: ['grandchild-a2a'] },
+    'child-a2': {
+      id: 'child-a2',
+      name: 'Child A2 Folder',
+      isFolder: true,
+      children: ['grandchild-a2a'],
+    },
     'grandchild-a2a': { id: 'grandchild-a2a', name: 'Grandchild A2a File', isFolder: false },
     'root-b': { id: 'root-b', name: 'Root B File', isFolder: false },
   };
@@ -36,7 +46,7 @@ describe('NgxTreeStore', () => {
 
   it('should expand folders and update flattened visible items', () => {
     store.toggleExpand('root-a');
-    
+
     let list = store.flattenedVisibleItems();
     // Expected: Root A, Child A1, Child A2 (Collapsed), Root B
     expect(list.length).toBe(4);
@@ -59,7 +69,7 @@ describe('NgxTreeStore', () => {
 
   it('should support fluid search query and expand ancestor paths', () => {
     store.setSearchQuery('Grandchild');
-    
+
     const list = store.flattenedVisibleItems();
     // Expected: Root A, Child A2, Grandchild A2a (all expanded automatically)
     // Child A1 and Root B should not match and should not be displayed!
@@ -74,7 +84,7 @@ describe('NgxTreeStore', () => {
   it('should add item to parent and update lists', () => {
     store.toggleExpand('root-a');
     const newItem: NgxTreeItem = { id: 'child-a3', name: 'Child A3 File', isFolder: false };
-    
+
     store.addItem('root-a', newItem);
 
     const list = store.flattenedVisibleItems();
@@ -104,7 +114,7 @@ describe('NgxTreeStore', () => {
 
   it('should move items in the hierarchy via drag and drop mechanics', () => {
     store.toggleExpand('root-a');
-    
+
     // Move Child A1 to be before Root A
     store.moveItem('child-a1', 'root-a', 'before');
 

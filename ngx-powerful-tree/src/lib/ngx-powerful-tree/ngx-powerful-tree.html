@@ -1,26 +1,35 @@
 <div class="ngx-tree-container" tabindex="-1">
   <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport">
-    <div *cdkVirtualFor="let item of store.flattenedVisibleItems(); trackBy: trackById; let idx = index"
-         ngxTreeRow
-         [item]="item"
-         (itemMoved)="onItemMoved($event)"
-         (click)="onItemClick(item, $event)"
-         [style.padding-left.rem]="item.depth * 1.25"
-         class="ngx-tree-row-wrapper">
-      
+    <div
+      *cdkVirtualFor="let item of store.flattenedVisibleItems(); trackBy: trackById; let idx = index"
+      ngxTreeRow
+      [item]="item"
+      (itemMoved)="onItemMoved($event)"
+      (click)="onItemClick(item, $event)"
+      [style.padding-left.rem]="item.depth * 1.25"
+      class="ngx-tree-row-wrapper"
+    >
       <!-- Content Template Outlet -->
-      <ng-container *ngTemplateOutlet="itemTemplate() || defaultTemplate; context: { $implicit: item, index: idx }">
+      <ng-container
+        *ngTemplateOutlet="itemTemplate() || defaultTemplate; context: { $implicit: item, index: idx }"
+      >
       </ng-container>
     </div>
 
     <!-- Empty State -->
     @if (store.totalVisibleCount() === 0) {
-      <div class="ngx-tree-empty-state">
-        <svg aria-hidden="true" viewBox="0 0 24 24" width="32" height="32" class="ngx-tree-empty-icon">
-          <path fill="currentColor" d="M19 13H5v-2h14v2z"/>
-        </svg>
-        <span>No items found</span>
-      </div>
+    <div class="ngx-tree-empty-state">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        width="32"
+        height="32"
+        class="ngx-tree-empty-icon"
+      >
+        <path fill="currentColor" d="M19 13H5v-2h14v2z" />
+      </svg>
+      <span>No items found</span>
+    </div>
     }
   </cdk-virtual-scroll-viewport>
 </div>
@@ -28,68 +37,102 @@
 <!-- Default Wireframe Template -->
 <ng-template #defaultTemplate let-item>
   <div class="ngx-tree-row-content">
-    
     <!-- Expand / Collapse Arrow -->
     @if (item.isFolder) {
-      <button class="ngx-tree-arrow-btn" 
-              (click)="toggleExpand(item.id, $event)" 
-              [attr.aria-label]="item.expanded ? 'Collapse folder' : 'Expand folder'"
-              tabindex="-1">
-        <svg viewBox="0 0 24 24" class="ngx-tree-arrow-icon" [class.ngx-tree-arrow-icon--expanded]="item.expanded">
-          <path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
-        </svg>
-      </button>
+    <button
+      class="ngx-tree-arrow-btn"
+      (click)="toggleExpand(item.id, $event)"
+      [attr.aria-label]="item.expanded ? 'Collapse folder' : 'Expand folder'"
+      tabindex="-1"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        class="ngx-tree-arrow-icon"
+        [class.ngx-tree-arrow-icon--expanded]="item.expanded"
+      >
+        <path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
+      </svg>
+    </button>
     } @else {
-      <div class="ngx-tree-arrow-placeholder"></div>
+    <div class="ngx-tree-arrow-placeholder"></div>
     }
 
     <!-- Folder/File Icon -->
     <span class="ngx-tree-item-icon" aria-hidden="true">
       @if (item.isFolder) {
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <path fill="currentColor" d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-        </svg>
+      <svg viewBox="0 0 24 24" width="20" height="20">
+        <path
+          fill="currentColor"
+          d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+        />
+      </svg>
       } @else {
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-        </svg>
+      <svg viewBox="0 0 24 24" width="20" height="20">
+        <path
+          fill="currentColor"
+          d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+        />
+      </svg>
       }
     </span>
 
     <!-- Item Name / Edit Input -->
     <div class="ngx-tree-item-text">
       @if (item.editing) {
-        <input #editInput 
-               [value]="item.name" 
-               (blur)="saveRename(item.id, editInput.value)" 
-               (keydown.enter)="saveRename(item.id, editInput.value)" 
-               (keydown.escape)="cancelRename()"
-               class="ngx-tree-edit-input" 
-               type="text" />
+      <input
+        #editInput
+        [value]="item.name"
+        (blur)="saveRename(item.id, editInput.value)"
+        (keydown.enter)="saveRename(item.id, editInput.value)"
+        (keydown.escape)="cancelRename()"
+        class="ngx-tree-edit-input"
+        type="text"
+      />
       } @else {
-        <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch">
-          {{ item.name }}
-        </span>
+      <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch">
+        {{ item.name }}
+      </span>
       }
     </div>
 
     <!-- Inline Actions (Visible on Hover for wireframe demo controls) -->
     <div class="ngx-tree-row-actions">
       @if (item.isFolder) {
-        <button class="ngx-tree-action-btn" (click)="triggerAddFolder(item.id, $event)" title="Add new child folder" tabindex="-1">
-          <svg viewBox="0 0 24 24" width="16" height="16">
-            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          </svg>
-        </button>
-      }
-      <button class="ngx-tree-action-btn" (click)="triggerRename(item.id, $event)" title="Rename" tabindex="-1">
+      <button
+        class="ngx-tree-action-btn"
+        (click)="triggerAddFolder(item.id, $event)"
+        title="Add new child folder"
+        tabindex="-1"
+      >
         <svg viewBox="0 0 24 24" width="16" height="16">
-          <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+          <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
         </svg>
       </button>
-      <button class="ngx-tree-action-btn" (click)="triggerDelete(item.id, $event)" title="Delete" tabindex="-1">
+      }
+      <button
+        class="ngx-tree-action-btn"
+        (click)="triggerRename(item.id, $event)"
+        title="Rename"
+        tabindex="-1"
+      >
         <svg viewBox="0 0 24 24" width="16" height="16">
-          <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+          />
+        </svg>
+      </button>
+      <button
+        class="ngx-tree-action-btn"
+        (click)="triggerDelete(item.id, $event)"
+        title="Delete"
+        tabindex="-1"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <path
+            fill="currentColor"
+            d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+          />
         </svg>
       </button>
     </div>

@@ -1,33 +1,36 @@
 <div class="playground-layout">
-  
   <!-- Sleek Modern Branding Header -->
   <header class="playground-header">
     <div class="logo-area">
       <span class="logo-dot"></span>
       <h1>ngx-powerful-tree <span class="badge">v21.2.0</span></h1>
     </div>
-    <p class="tagline">Enterprise-grade, high-performance virtualized tree component with native HTML5 drag & drop.</p>
+    <p class="tagline">
+      Enterprise-grade, high-performance virtualized tree component with native HTML5 drag & drop.
+    </p>
   </header>
 
   <div class="playground-grid">
-    
     <!-- Left Column: Controls & Stats -->
     <aside class="playground-controls">
       <div class="control-card">
         <h2>Control Panel</h2>
-        
+
         <div class="control-group">
           <label for="search-input">Search Tree (Fluid)</label>
           <div class="search-wrapper">
-            <input 
+            <input
               id="search-input"
-              type="text" 
-              placeholder="Type to filter & highlight..." 
+              type="text"
+              placeholder="Type to filter & highlight..."
               (input)="onSearchChange($event)"
-              [value]="searchQuery()" 
-              class="control-input" />
+              [value]="searchQuery()"
+              class="control-input"
+            />
             @if (searchQuery()) {
-              <button class="clear-search" (click)="searchQuery.set('')" title="Clear search">×</button>
+            <button class="clear-search" (click)="searchQuery.set('')" title="Clear search">
+              ×
+            </button>
             }
           </div>
         </div>
@@ -35,10 +38,18 @@
         <div class="control-group">
           <label>Scale Benchmarks (Generate Items)</label>
           <div class="scale-buttons">
-            <button [class.active]="totalItemCount() === 1000" (click)="changeItemCount(1000)">1,000</button>
-            <button [class.active]="totalItemCount() === 10000" (click)="changeItemCount(10000)">10,000</button>
-            <button [class.active]="totalItemCount() === 50000" (click)="changeItemCount(50000)">50,000</button>
-            <button [class.active]="totalItemCount() === 100000" (click)="changeItemCount(100000)">100,000+</button>
+            <button [class.active]="totalItemCount() === 1000" (click)="changeItemCount(1000)">
+              1,000
+            </button>
+            <button [class.active]="totalItemCount() === 10000" (click)="changeItemCount(10000)">
+              10,000
+            </button>
+            <button [class.active]="totalItemCount() === 50000" (click)="changeItemCount(50000)">
+              50,000
+            </button>
+            <button [class.active]="totalItemCount() === 100000" (click)="changeItemCount(100000)">
+              100,000+
+            </button>
           </div>
         </div>
 
@@ -69,7 +80,12 @@
         </div>
         <div class="metric-row">
           <span class="metric-label">FPS Capability:</span>
-          <span class="metric-value" [class.accent-green]="currentFps() >= 55" [class.accent-yellow]="currentFps() < 55 && currentFps() >= 30" [class.accent-red]="currentFps() < 30">
+          <span
+            class="metric-value"
+            [class.accent-green]="currentFps() >= 55"
+            [class.accent-yellow]="currentFps() < 55 && currentFps() >= 30"
+            [class.accent-red]="currentFps() < 30"
+          >
             {{ currentFps() }} FPS (Live)
           </span>
         </div>
@@ -97,13 +113,21 @@
             <h2>Active Directory</h2>
           </div>
           <div class="tree-actions">
-            <button class="outline-btn" (click)="primaryTree.addRootFolder()" title="Add folder at root">
+            <button
+              class="outline-btn"
+              (click)="primaryTree.addRootFolder()"
+              title="Add folder at root"
+            >
               + New Root Folder
             </button>
             <button class="outline-btn" (click)="primaryTree.store.expandAll()" title="Expand all">
               Expand All
             </button>
-            <button class="outline-btn" (click)="primaryTree.store.collapseAll()" title="Collapse all">
+            <button
+              class="outline-btn"
+              (click)="primaryTree.store.collapseAll()"
+              title="Collapse all"
+            >
               Collapse All
             </button>
           </div>
@@ -121,7 +145,8 @@
             (itemAdded)="onItemAdded($event)"
             (itemDeleted)="onItemDeleted($event)"
             (selectionChanged)="onSelectionChanged($event)"
-            (focusedChanged)="onFocusedChanged($event)">
+            (focusedChanged)="onFocusedChanged($event)"
+          >
           </ngx-powerful-tree>
         </div>
       </div>
@@ -136,11 +161,12 @@
         </div>
         <div class="logs-console">
           @for (log of logs(); track $index) {
-            <div class="log-entry">
-              {{ log }}
-            </div>
+          <div class="log-entry">{{ log }}</div>
           } @empty {
-            <div class="logs-empty">Waiting for interactions... Click, drag-n-drop, rename, delete or add nodes to view events in real-time.</div>
+          <div class="logs-empty">
+            Waiting for interactions... Click, drag-n-drop, rename, delete or add nodes to view
+            events in real-time.
+          </div>
           }
         </div>
       </div>
@@ -149,30 +175,34 @@
 
   <!-- Overlay/Dialog Presentation Demo -->
   @if (isOverlayOpen()) {
-    <div class="overlay-backdrop" (click)="toggleOverlay()">
-      <div class="overlay-modal" (click)="$event.stopPropagation()">
-        <header class="overlay-modal-header">
-          <div>
-            <h3>Overlay Mounting Demo</h3>
-            <p>Tree rendering in a floating popover system</p>
-          </div>
-          <button class="close-overlay" (click)="toggleOverlay()">×</button>
-        </header>
-        
-        <!-- Nested tree instance in overlay with same dataset but independent state -->
-        <div class="overlay-tree-wrapper">
-          <ngx-powerful-tree
-            [items]="treeItems()"
-            [rootIds]="treeRootIds()"
-            [searchQuery]="searchQuery()"
-            [multiSelect]="false">
-          </ngx-powerful-tree>
+  <div class="overlay-backdrop" (click)="toggleOverlay()">
+    <div class="overlay-modal" (click)="$event.stopPropagation()">
+      <header class="overlay-modal-header">
+        <div>
+          <h3>Overlay Mounting Demo</h3>
+          <p>Tree rendering in a floating popover system</p>
         </div>
-        
-        <footer class="overlay-modal-footer">
-          <p>This floating tree instance uses the exact same 100k+ data registry but has its own independent selection, focus, and expansion states.</p>
-        </footer>
+        <button class="close-overlay" (click)="toggleOverlay()">×</button>
+      </header>
+
+      <!-- Nested tree instance in overlay with same dataset but independent state -->
+      <div class="overlay-tree-wrapper">
+        <ngx-powerful-tree
+          [items]="treeItems()"
+          [rootIds]="treeRootIds()"
+          [searchQuery]="searchQuery()"
+          [multiSelect]="false"
+        >
+        </ngx-powerful-tree>
       </div>
+
+      <footer class="overlay-modal-footer">
+        <p>
+          This floating tree instance uses the exact same 100k+ data registry but has its own
+          independent selection, focus, and expansion states.
+        </p>
+      </footer>
     </div>
+  </div>
   }
 </div>

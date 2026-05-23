@@ -16,7 +16,14 @@
 
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   border: 1px solid var(--ngx-tree-border);
   border-radius: 8px;
   overflow: hidden;
@@ -93,7 +100,7 @@
 
 /* Base style for fluid drag indicator overlay (prevents row dimension shifts) */
 .ngx-tree-row-wrapper::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 12px;
   right: 12px;
@@ -119,12 +126,14 @@
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
   background-color: var(--ngx-tree-selected-bg) !important;
   box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 /* Nesting Guidelines using Variable-Driven Depth */
 .ngx-tree-row-wrapper::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   bottom: 0;
@@ -137,8 +146,8 @@
 }
 
 /* Hide lines for root elements (depth 0) to keep the layout extremely clean */
-.ngx-tree-row-wrapper[style*="--ngx-tree-depth: 0"]::before,
-.ngx-tree-row-wrapper[style*="--ngx-tree-depth:0"]::before {
+.ngx-tree-row-wrapper[style*='--ngx-tree-depth: 0']::before,
+.ngx-tree-row-wrapper[style*='--ngx-tree-depth:0']::before {
   display: none;
 }
 
@@ -164,7 +173,9 @@
   color: var(--ngx-tree-action-color);
   cursor: pointer;
   border-radius: 4px;
-  transition: transform 0.15s ease, color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease;
 }
 
 .ngx-tree-arrow-btn:hover {
@@ -254,7 +265,9 @@
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .ngx-tree-action-btn:hover {

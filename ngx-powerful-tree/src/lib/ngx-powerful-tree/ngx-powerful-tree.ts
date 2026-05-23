@@ -16,10 +16,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  CdkVirtualScrollViewport,
-  ScrollingModule,
-} from '@angular/cdk/scrolling';
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import { NgxTreeStore } from '../ngx-tree.store';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
 import { NgxTreeItem, NgxTreeProxyItem, DragPosition } from '../ngx-tree.types';
@@ -130,11 +127,7 @@ export class NgxPowerfulTree {
     this.store.toggleExpand(id);
   }
 
-  onItemMoved(event: {
-    draggedId: string;
-    targetId: string;
-    position: DragPosition;
-  }) {
+  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
     // Bubble up to consumer
     this.itemMoved.emit(event);
   }
@@ -319,12 +312,7 @@ export class NgxPowerfulTree {
 
       default:
         // Wrap-around Typeahead search: jump focus to next item matching character pressed
-        if (
-          event.key.length === 1 &&
-          !event.ctrlKey &&
-          !event.altKey &&
-          !event.metaKey
-        ) {
+        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
           const char = event.key.toLowerCase();
           for (let i = 1; i <= list.length; i++) {
             const idx = (focusedIdx + i) % list.length;
