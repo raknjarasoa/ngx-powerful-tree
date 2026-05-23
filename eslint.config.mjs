@@ -39,4 +39,23 @@ export default [
     // Override or add rules here
     rules: {},
   },
+  {
+    files: ['**/*.html'],
+    rules: {
+      '@angular-eslint/template/interactive-supports-focus': 'off',
+      '@angular-eslint/template/click-events-have-key-events': 'off',
+    },
+  },
+  {
+    files: ['**/*.json'],
+    rules: {
+      '@nx/dependency-checks': [
+        'error',
+        {
+          ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+          ignoredDependencies: ['vitest'],
+        },
+      ],
+    },
+  },
 ];

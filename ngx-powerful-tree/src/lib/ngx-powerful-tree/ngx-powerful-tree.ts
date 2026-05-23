@@ -16,7 +16,10 @@ import {
   viewChildren,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import {
+  CdkVirtualScrollViewport,
+  ScrollingModule,
+} from '@angular/cdk/scrolling';
 import { NgxTreeStore } from '../ngx-tree.store';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
 import { NgxTreeItem, NgxTreeProxyItem, DragPosition } from '../ngx-tree.types';
@@ -41,7 +44,11 @@ export class NgxPowerfulTree {
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
 
   // --- Outputs (Events) ---
-  itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
+  itemMoved = output<{
+    draggedId: string;
+    targetId: string;
+    position: DragPosition;
+  }>();
   itemRenamed = output<{ id: string; name: string }>();
   itemAdded = output<{ parentId: string | null; item: NgxTreeItem }>();
   itemDeleted = output<string>();
@@ -123,7 +130,11 @@ export class NgxPowerfulTree {
     this.store.toggleExpand(id);
   }
 
-  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
+  onItemMoved(event: {
+    draggedId: string;
+    targetId: string;
+    position: DragPosition;
+  }) {
     // Bubble up to consumer
     this.itemMoved.emit(event);
   }
@@ -194,7 +205,7 @@ export class NgxPowerfulTree {
     if (list.length === 0) return;
 
     const focusedId = this.store.focusedItemId();
-    let focusedIdx = list.findIndex((item) => item.id === focusedId);
+    const focusedIdx = list.findIndex((item) => item.id === focusedId);
 
     // If no item is focused, default to focusing the first visible item
     if (focusedIdx === -1) {
@@ -308,7 +319,12 @@ export class NgxPowerfulTree {
 
       default:
         // Wrap-around Typeahead search: jump focus to next item matching character pressed
-        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (
+          event.key.length === 1 &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey
+        ) {
           const char = event.key.toLowerCase();
           for (let i = 1; i <= list.length; i++) {
             const idx = (focusedIdx + i) % list.length;

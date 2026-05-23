@@ -1,6 +1,17 @@
 import { computed } from '@angular/core';
-import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
-import { NgxTreeItem, NgxTreeProxyItem, NgxTreeState, DragPosition } from './ngx-tree.types';
+import {
+  signalStore,
+  withState,
+  withComputed,
+  withMethods,
+  patchState,
+} from '@ngrx/signals';
+import {
+  NgxTreeItem,
+  NgxTreeProxyItem,
+  NgxTreeState,
+  DragPosition,
+} from './ngx-tree.types';
 
 const initialState: NgxTreeState = {
   items: {},
@@ -93,7 +104,9 @@ export const NgxTreeStore = signalStore(
         }
 
         // Ancestors of matches are forced to be expanded so search results are visible
-        const isExpanded = isSearching ? (isAncestor || expandedItems.has(id)) : expandedItems.has(id);
+        const isExpanded = isSearching
+          ? isAncestor || expandedItems.has(id)
+          : expandedItems.has(id);
         const isSelected = selectedItems.has(id);
         const isFocused = focusedItemId === id;
         const isEditing = editingItemId === id;
@@ -181,7 +194,9 @@ export const NgxTreeStore = signalStore(
       },
 
       selectItem(id: string, multiSelect = false) {
-        const selected = new Set<string>(multiSelect ? store.selectedItems() : []);
+        const selected = new Set<string>(
+          multiSelect ? store.selectedItems() : [],
+        );
         if (multiSelect && selected.has(id)) {
           selected.delete(id);
         } else {
@@ -218,13 +233,15 @@ export const NgxTreeStore = signalStore(
         const currentItems = { ...store.items() };
         currentItems[newItem.id] = newItem;
 
-        let rootIds = [...store.rootIds()];
+        const rootIds = [...store.rootIds()];
         if (parentId === null) {
           rootIds.push(newItem.id);
         } else {
           const parentItem = currentItems[parentId];
           if (parentItem && parentItem.isFolder) {
-            const children = parentItem.children ? [...parentItem.children] : [];
+            const children = parentItem.children
+              ? [...parentItem.children]
+              : [];
             children.push(newItem.id);
             currentItems[parentId] = { ...parentItem, children };
           }
@@ -289,8 +306,14 @@ export const NgxTreeStore = signalStore(
           expanded.delete(deletedId);
         }
 
-        const focusedItemId = store.focusedItemId() && deletedIds.has(store.focusedItemId()!) ? null : store.focusedItemId();
-        const editingItemId = store.editingItemId() && deletedIds.has(store.editingItemId()!) ? null : store.editingItemId();
+        const focusedItemId =
+          store.focusedItemId() && deletedIds.has(store.focusedItemId()!)
+            ? null
+            : store.focusedItemId();
+        const editingItemId =
+          store.editingItemId() && deletedIds.has(store.editingItemId()!)
+            ? null
+            : store.editingItemId();
 
         patchState(store, {
           items: currentItems,
@@ -304,7 +327,12 @@ export const NgxTreeStore = signalStore(
 
       moveItem(draggedId: string, targetId: string, position: DragPosition) {
         const currentItems = { ...store.items() };
-        if (!currentItems[draggedId] || !currentItems[targetId] || draggedId === targetId) return;
+        if (
+          !currentItems[draggedId] ||
+          !currentItems[targetId] ||
+          draggedId === targetId
+        )
+          return;
 
         // Prevent dragging an item into its own descendant!
         const isDescendant = (parent: string, child: string): boolean => {
@@ -325,7 +353,9 @@ export const NgxTreeStore = signalStore(
           if (sourceParent && sourceParent.children) {
             currentItems[sourceParentId] = {
               ...sourceParent,
-              children: sourceParent.children.filter((cId) => cId !== draggedId),
+              children: sourceParent.children.filter(
+                (cId) => cId !== draggedId,
+              ),
             };
           }
         } else {
@@ -369,11 +399,19 @@ export const NgxTreeStore = signalStore(
           items: currentItems,
           rootIds,
           focusedItemId: draggedId,
-          dragState: { draggedItemId: null, dragOverItemId: null, position: null },
+          dragState: {
+            draggedItemId: null,
+            dragOverItemId: null,
+            position: null,
+          },
         });
       },
 
-      setDragState(draggedItemId: string | null, dragOverItemId: string | null, position: DragPosition) {
+      setDragState(
+        draggedItemId: string | null,
+        dragOverItemId: string | null,
+        position: DragPosition,
+      ) {
         patchState(store, {
           dragState: { draggedItemId, dragOverItemId, position },
         });
@@ -381,9 +419,13 @@ export const NgxTreeStore = signalStore(
 
       clearDragState() {
         patchState(store, {
-          dragState: { draggedItemId: null, dragOverItemId: null, position: null },
+          dragState: {
+            draggedItemId: null,
+            dragOverItemId: null,
+            position: null,
+          },
         });
       },
     };
-  })
+  }),
 );

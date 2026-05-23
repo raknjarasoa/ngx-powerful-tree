@@ -2,7 +2,15 @@
   "name": "@temp-workspace/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "prepare": "husky || true",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "nx run-many --target=lint",
+    "test": "nx run-many --target=test",
+    "build": "nx build ngx-powerful-tree",
+    "publish:manual": "npm run build && cd dist/ngx-powerful-tree && npm publish --access public"
+  },
   "private": true,
   "dependencies": {
     "@angular-devkit/build-angular": "~21.2.0",
@@ -57,6 +65,18 @@
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "semantic-release": "^24.2.3",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^12.0.1"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "prettier --write"
+    ],
+    "*.{json,md}": "prettier --write"
   }
 }
