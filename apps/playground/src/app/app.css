@@ -152,7 +152,8 @@ body {
   gap: 8px;
 }
 
-.control-group label {
+.control-group label,
+.control-group .control-label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--pg-color-muted);

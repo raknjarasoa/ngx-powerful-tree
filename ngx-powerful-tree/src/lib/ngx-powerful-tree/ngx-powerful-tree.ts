@@ -1,11 +1,8 @@
 import {
   Component,
-  ContentChild,
   ElementRef,
   HostListener,
-  Input,
   TemplateRef,
-  ViewChild,
   contentChild,
   effect,
   inject,
@@ -42,6 +39,7 @@ export class NgxPowerfulTree {
   multiSelect = input<boolean>(false);
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
   foldersOnly = input<boolean>(false);
+  readOnly = input<boolean>(false);
 
   // --- Outputs (Events) ---
   itemMoved = output<{
@@ -306,13 +304,17 @@ export class NgxPowerfulTree {
 
       case 'F2':
         event.preventDefault();
-        this.store.setEditingItemId(currentItem.id);
+        if (!this.readOnly()) {
+          this.store.setEditingItemId(currentItem.id);
+        }
         break;
 
       case 'Delete':
         event.preventDefault();
-        this.store.deleteItem(currentItem.id);
-        this.itemDeleted.emit(currentItem.id);
+        if (!this.readOnly()) {
+          this.store.deleteItem(currentItem.id);
+          this.itemDeleted.emit(currentItem.id);
+        }
         break;
 
       case 'Escape':

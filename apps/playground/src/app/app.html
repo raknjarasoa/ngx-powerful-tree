@@ -36,7 +36,7 @@
         </div>
 
         <div class="control-group">
-          <label>Scale Benchmarks (Generate Items)</label>
+          <span class="control-label">Scale Benchmarks (Generate Items)</span>
           <div class="scale-buttons">
             <button [class.active]="totalItemCount() === 1000" (click)="changeItemCount(1000)">
               1,000
@@ -223,6 +223,7 @@
           <div class="overlay-search-group" style="padding: 12px 24px; display: flex; flex-direction: column; gap: 6px;">
             <label for="overlay-search" style="font-size: 0.85rem; font-weight: 600; opacity: 0.8;">Filter Destination Folders</label>
             <input #overlaySearch 
+                   id="overlay-search"
                    type="text" 
                    placeholder="Search destination folder..." 
                    class="control-input" 
@@ -232,9 +233,10 @@
 
           <div class="overlay-tree-wrapper">
             <ngx-powerful-tree
-              [items]="treeItems()"
-              [rootIds]="treeRootIds()"
+              [items]="primaryTree.store.items()"
+              [rootIds]="primaryTree.store.rootIds()"
               [foldersOnly]="true"
+              [readOnly]="true"
               [searchQuery]="overlaySearchQuery()"
               [multiSelect]="false"
               (selectionChanged)="onDestinationSelected($event)">

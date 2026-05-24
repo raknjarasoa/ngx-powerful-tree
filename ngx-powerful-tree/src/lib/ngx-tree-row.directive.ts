@@ -21,6 +21,7 @@ export class NgxTreeRowDirective {
 
   // Modern Signal Inputs
   item = input.required<NgxTreeProxyItem>();
+  readOnly = input<boolean>(false);
 
   // Outputs for parent notification
   itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
@@ -107,15 +108,15 @@ export class NgxTreeRowDirective {
   }
 
   @HostBinding('attr.draggable') get isDraggable() {
-    // Prevent dragging if renaming to avoid conflict
-    return !this.item().editing;
+    // Prevent dragging if in readOnly mode or renaming to avoid conflict
+    return !this.readOnly() && !this.item().editing;
   }
 
   // --- HTML5 Native Drag & Drop Event Listeners ---
 
   @HostListener('dragstart', ['$event'])
   onDragStart(event: DragEvent) {
-    if (this.item().editing) {
+    if (this.readOnly() || this.item().editing) {
       event.preventDefault();
       return;
     }
@@ -131,6 +132,9 @@ export class NgxTreeRowDirective {
 
   @HostListener('dragover', ['$event'])
   onDragOver(event: DragEvent) {
+    if (this.readOnly()) {
+      return;
+    }
     const dragState = this.store.dragState();
     const draggedId = dragState.draggedItemId;
 
@@ -183,8 +187,11 @@ export class NgxTreeRowDirective {
     }
   }
 
-  @HostListener('dragleave', ['$event'])
-  onDragLeave(event: DragEvent) {
+  @HostListener('dragleave')
+  onDragLeave() {
+    if (this.readOnly()) {
+      return;
+    }
     this.clearHoverTimer();
     const dragState = this.store.dragState();
     if (dragState.dragOverItemId === this.item().id) {
@@ -194,6 +201,9 @@ export class NgxTreeRowDirective {
 
   @HostListener('drop', ['$event'])
   onDrop(event: DragEvent) {
+    if (this.readOnly()) {
+      return;
+    }
     event.preventDefault();
     this.clearHoverTimer();
 
@@ -216,8 +226,11 @@ export class NgxTreeRowDirective {
     this.store.clearDragState();
   }
 
-  @HostListener('dragend', ['$event'])
-  onDragEnd(event: DragEvent) {
+  @HostListener('dragend')
+  onDragEnd() {
+    if (this.readOnly()) {
+      return;
+    }
     this.clearHoverTimer();
     this.store.clearDragState();
   }

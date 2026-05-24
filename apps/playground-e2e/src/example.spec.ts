@@ -111,4 +111,54 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     await expect(editInput).not.toBeVisible();
     await expect(firstRow).toContainText('Renamed Volume');
   });
+
+  test('should sync changes and render a clean read-only picker in the relocation overlay', async ({
+    page,
+  }) => {
+    // 1. Get the name/id of the first folder to delete
+    const firstRow = page.locator('.ngx-tree-row').first();
+    const folderName = await firstRow.locator('.ngx-tree-item-name').innerText();
+
+    // Delete it using the hover action delete button
+    await firstRow.hover();
+    const deleteBtn = firstRow.locator('button[title="Delete"]');
+    await deleteBtn.click();
+
+    // Verify it is deleted from the primary tree
+    await expect(firstRow).not.toContainText(folderName);
+
+    // 2. Hover over the next folder and trigger the relocate dialog
+    const nextRow = page.locator('.ngx-tree-row').first();
+    await nextRow.hover();
+    const moveBtn = nextRow.locator('button[title="Move to Folder"]');
+    await moveBtn.click();
+
+    // Relocation backdrop should be visible
+    const backdrop = page.locator('.overlay-backdrop');
+    await expect(backdrop).toBeVisible();
+
+    // 3. Verify the picker tree is fully synced (the deleted folder should NOT exist)
+    const pickerTree = page.locator('.overlay-tree-wrapper');
+    const deletedFolderLocator = pickerTree.locator(`.ngx-tree-item-name:text-is("${folderName}")`);
+    await expect(deletedFolderLocator).toHaveCount(0);
+
+    // 4. Verify the picker tree is strictly read-only (no hover action buttons should render)
+    const pickerRow = pickerTree.locator('.ngx-tree-row').first();
+    await pickerRow.hover();
+    const pickerRenameBtn = pickerRow.locator('button[title="Rename"]');
+    await expect(pickerRenameBtn).not.toBeVisible(); // Completely hidden!
+
+    const pickerDeleteBtn = pickerRow.locator('button[title="Delete"]');
+    await expect(pickerDeleteBtn).not.toBeVisible(); // Completely hidden!
+
+    // 5. Select a target destination in the picker to enable Confirm Move
+    await pickerRow.click();
+    const confirmBtn = page.locator('.confirm-move-btn');
+    await expect(confirmBtn).toBeEnabled();
+
+    // Close the relocation picker
+    const cancelBtn = page.locator('.close-overlay-btn');
+    await cancelBtn.click();
+    await expect(backdrop).not.toBeVisible();
+  });
 });
