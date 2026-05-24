@@ -165,7 +165,10 @@ export class NgxTreeRowDirective {
       }
     }
 
-    this.store.setDragState(draggedId, this.item().id, position);
+    // Only patch the store state if the target row or position has actually changed!
+    if (dragState.dragOverItemId !== this.item().id || dragState.position !== position) {
+      this.store.setDragState(draggedId, this.item().id, position);
+    }
 
     // Spring-loaded folder expansion: if dragging over a folder and position is inside, auto-expand it after 800ms
     if (this.item().isFolder && position === 'inside' && !this.item().expanded) {

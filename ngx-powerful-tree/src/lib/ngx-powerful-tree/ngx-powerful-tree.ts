@@ -14,6 +14,7 @@ import {
   untracked,
   viewChild,
   viewChildren,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
@@ -28,6 +29,7 @@ import { NgxTreeItem, NgxTreeProxyItem, DragPosition } from '../ngx-tree.types';
   providers: [NgxTreeStore],
   templateUrl: './ngx-powerful-tree.html',
   styleUrl: './ngx-powerful-tree.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NgxPowerfulTree {
   // Inject the local state store provided at the component level

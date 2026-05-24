@@ -8,6 +8,7 @@ import {
   PLATFORM_ID,
   viewChild,
   computed,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
@@ -18,6 +19,7 @@ import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
   imports: [CommonModule, NgxPowerfulTree],
   templateUrl: './app.html',
   styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent implements OnInit, OnDestroy {
   private platformId = inject(PLATFORM_ID);
