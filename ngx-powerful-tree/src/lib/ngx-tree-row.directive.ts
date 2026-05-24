@@ -1,23 +1,43 @@
-import {
-  Directive,
-  ElementRef,
-  HostBinding,
-  HostListener,
-  inject,
-  input,
-  output,
-} from '@angular/core';
+import { Directive, ElementRef, inject, input, output, computed, signal } from '@angular/core';
 import { NgxTreeStore } from './ngx-tree.store';
 import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
 
 @Directive({
   selector: '[ngxTreeRow]',
   standalone: true,
+  host: {
+    role: 'treeitem',
+    '[attr.aria-expanded]': 'ariaExpanded()',
+    '[attr.aria-selected]': 'ariaSelected()',
+    '[attr.aria-level]': 'ariaLevel()',
+    '[attr.tabindex]': 'tabindex()',
+    '[class.ngx-tree-row]': 'isRow()',
+    '[class.ngx-tree-row--folder]': 'isFolder()',
+    '[class.ngx-tree-row--file]': 'isFile()',
+    '[class.ngx-tree-row--expanded]': 'isExpanded()',
+    '[class.ngx-tree-row--collapsed]': 'isCollapsed()',
+    '[class.ngx-tree-row--selected]': 'isSelected()',
+    '[class.ngx-tree-row--focused]': 'isFocused()',
+    '[class.ngx-tree-row--editing]': 'isEditing()',
+    '[class.ngx-tree-row--locked]': 'isLocked()',
+    '[class.ngx-tree-row--dragging]': 'isDragging()',
+    '[class.ngx-tree-row--drag-over-before]': 'isDragOverBefore()',
+    '[class.ngx-tree-row--drag-over-after]': 'isDragOverAfter()',
+    '[class.ngx-tree-row--drag-over-inside]': 'isDragOverInside()',
+    '[style.--ngx-tree-depth]': 'cssDepth()',
+    '[class.ngx-tree-row--depth-0]': 'isDepth0()',
+    '[attr.draggable]': 'isDraggable()',
+    '(dragstart)': 'onDragStart($event)',
+    '(dragover)': 'onDragOver($event)',
+    '(dragleave)': 'onDragLeave()',
+    '(drop)': 'onDrop($event)',
+    '(dragend)': 'onDragEnd()',
+  },
 })
 export class NgxTreeRowDirective {
   private el = inject(ElementRef);
   private store = inject(NgxTreeStore);
-  private hoverTimer: any = null;
+  private hoverTimer: number | null = null;
 
   // Modern Signal Inputs
   item = input.required<NgxTreeProxyItem>();
@@ -27,99 +47,33 @@ export class NgxTreeRowDirective {
   // Outputs for parent notification
   itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
 
-  // ARIA Host Bindings
-  @HostBinding('attr.role') get role() {
-    return 'treeitem';
-  }
+  // Derived state signals to avoid legacy getters
+  ariaExpanded = computed(() => (this.item().isFolder ? this.item().expanded.toString() : null));
+  ariaSelected = computed(() => this.item().selected);
+  ariaLevel = computed(() => this.item().depth + 1);
+  tabindex = computed(() => (this.item().focused ? '0' : '-1'));
 
-  @HostBinding('attr.aria-expanded') get ariaExpanded() {
-    return this.item().isFolder ? this.item().expanded.toString() : null;
-  }
+  isRow = signal(true);
+  isFolder = computed(() => this.item().isFolder);
+  isFile = computed(() => !this.item().isFolder);
+  isExpanded = computed(() => this.item().isFolder && this.item().expanded);
+  isCollapsed = computed(() => this.item().isFolder && !this.item().expanded);
+  isSelected = computed(() => this.item().selected);
+  isFocused = computed(() => this.item().focused);
+  isEditing = computed(() => this.item().editing);
+  isLocked = computed(() => this.locked());
+  isDragging = computed(() => this.store.dragState().draggedItemId === this.item().id);
 
-  @HostBinding('attr.aria-selected') get ariaSelected() {
-    return this.item().selected;
-  }
+  isDragOverBefore = computed(() => this.isDragOverState('before'));
+  isDragOverAfter = computed(() => this.isDragOverState('after'));
+  isDragOverInside = computed(() => this.isDragOverState('inside'));
 
-  @HostBinding('attr.aria-level') get ariaLevel() {
-    return this.item().depth + 1;
-  }
-
-  @HostBinding('attr.tabindex') get tabindex() {
-    // Only the focused item is in the tab sequence. If none focused, the first item is.
-    return this.item().focused ? '0' : '-1';
-  }
-
-  // Dynamic status CSS classes
-  @HostBinding('class.ngx-tree-row') get isRow() {
-    return true;
-  }
-
-  @HostBinding('class.ngx-tree-row--folder') get isFolder() {
-    return this.item().isFolder;
-  }
-
-  @HostBinding('class.ngx-tree-row--file') get isFile() {
-    return !this.item().isFolder;
-  }
-
-  @HostBinding('class.ngx-tree-row--expanded') get isExpanded() {
-    return this.item().isFolder && this.item().expanded;
-  }
-
-  @HostBinding('class.ngx-tree-row--collapsed') get isCollapsed() {
-    return this.item().isFolder && !this.item().expanded;
-  }
-
-  @HostBinding('class.ngx-tree-row--selected') get isSelected() {
-    return this.item().selected;
-  }
-
-  @HostBinding('class.ngx-tree-row--focused') get isFocused() {
-    return this.item().focused;
-  }
-
-  @HostBinding('class.ngx-tree-row--editing') get isEditing() {
-    return this.item().editing;
-  }
-
-  @HostBinding('class.ngx-tree-row--locked') get isLocked() {
-    return this.locked();
-  }
-
-  @HostBinding('class.ngx-tree-row--dragging') get isDragging() {
-    return this.store.dragState().draggedItemId === this.item().id;
-  }
-
-  // Drag Over positions CSS classes
-  @HostBinding('class.ngx-tree-row--drag-over-before') get isDragOverBefore() {
-    return this.isDragOverState('before');
-  }
-
-  @HostBinding('class.ngx-tree-row--drag-over-after') get isDragOverAfter() {
-    return this.isDragOverState('after');
-  }
-
-  @HostBinding('class.ngx-tree-row--drag-over-inside') get isDragOverInside() {
-    return this.isDragOverState('inside');
-  }
-
-  // Bind CSS custom variables dynamically
-  @HostBinding('style.--ngx-tree-depth') get cssDepth() {
-    return this.item().depth;
-  }
-
-  @HostBinding('class.ngx-tree-row--depth-0') get isDepth0() {
-    return this.item().depth === 0;
-  }
-
-  @HostBinding('attr.draggable') get isDraggable() {
-    // Prevent dragging if in readOnly mode, locked mode, or renaming to avoid conflict
-    return !this.readOnly() && !this.locked() && !this.item().editing;
-  }
+  cssDepth = computed(() => this.item().depth);
+  isDepth0 = computed(() => this.item().depth === 0);
+  isDraggable = computed(() => !this.readOnly() && !this.locked() && !this.item().editing);
 
   // --- HTML5 Native Drag & Drop Event Listeners ---
 
-  @HostListener('dragstart', ['$event'])
   onDragStart(event: DragEvent) {
     if (this.readOnly() || this.locked() || this.item().editing) {
       event.preventDefault();
@@ -135,7 +89,6 @@ export class NgxTreeRowDirective {
     this.store.setDragState(this.item().id, null, null);
   }
 
-  @HostListener('dragover', ['$event'])
   onDragOver(event: DragEvent) {
     if (this.readOnly() || this.locked()) {
       return;
@@ -182,7 +135,7 @@ export class NgxTreeRowDirective {
     // Spring-loaded folder expansion: if dragging over a folder and position is inside, auto-expand it after 800ms
     if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
       if (!this.hoverTimer) {
-        this.hoverTimer = setTimeout(() => {
+        this.hoverTimer = window.setTimeout(() => {
           this.store.setExpanded(this.item().id, true);
           this.hoverTimer = null;
         }, 800);
@@ -192,7 +145,6 @@ export class NgxTreeRowDirective {
     }
   }
 
-  @HostListener('dragleave')
   onDragLeave() {
     if (this.readOnly() || this.locked()) {
       return;
@@ -204,7 +156,6 @@ export class NgxTreeRowDirective {
     }
   }
 
-  @HostListener('drop', ['$event'])
   onDrop(event: DragEvent) {
     if (this.readOnly() || this.locked()) {
       return;
@@ -231,7 +182,6 @@ export class NgxTreeRowDirective {
     this.store.clearDragState();
   }
 
-  @HostListener('dragend')
   onDragEnd() {
     if (this.readOnly() || this.locked()) {
       return;
@@ -244,7 +194,7 @@ export class NgxTreeRowDirective {
 
   private clearHoverTimer() {
     if (this.hoverTimer) {
-      clearTimeout(this.hoverTimer);
+      window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
     }
   }
