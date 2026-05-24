@@ -42,4 +42,5 @@ export interface NgxTreeState<T = any> {
   editingItemId: string | null;
   searchQuery: string;
   dragState: DragState;
+  foldersOnly: boolean;
 }

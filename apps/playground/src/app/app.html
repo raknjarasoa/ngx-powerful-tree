@@ -146,6 +146,7 @@
             (itemDeleted)="onItemDeleted($event)"
             (selectionChanged)="onSelectionChanged($event)"
             (focusedChanged)="onFocusedChanged($event)"
+            (moveRequested)="onMoveRequested($event)"
           >
           </ngx-powerful-tree>
         </div>
@@ -204,5 +205,57 @@
       </footer>
     </div>
   </div>
+  }
+
+  <!-- Move Overlay/Dialog Picker (Relocation Picker utilizing Deferrable Views) -->
+  @if (isMoveOverlayOpen()) {
+    @defer (on immediate) {
+      <div class="overlay-backdrop" (click)="cancelMove()">
+        <div class="overlay-modal" (click)="$event.stopPropagation()">
+          <header class="overlay-modal-header">
+            <div>
+              <h3>📁 Relocate Item</h3>
+              <p>Move <strong>{{ movingItemName() }}</strong> to another folder</p>
+            </div>
+            <button class="close-overlay" (click)="cancelMove()">×</button>
+          </header>
+          
+          <div class="overlay-search-group" style="padding: 12px 24px; display: flex; flex-direction: column; gap: 6px;">
+            <label for="overlay-search" style="font-size: 0.85rem; font-weight: 600; opacity: 0.8;">Filter Destination Folders</label>
+            <input #overlaySearch 
+                   type="text" 
+                   placeholder="Search destination folder..." 
+                   class="control-input" 
+                   (input)="overlaySearchQuery.set(overlaySearch.value)"
+                   [value]="overlaySearchQuery()" />
+          </div>
+
+          <div class="overlay-tree-wrapper">
+            <ngx-powerful-tree
+              [items]="treeItems()"
+              [rootIds]="treeRootIds()"
+              [foldersOnly]="true"
+              [searchQuery]="overlaySearchQuery()"
+              [multiSelect]="false"
+              (selectionChanged)="onDestinationSelected($event)">
+            </ngx-powerful-tree>
+          </div>
+
+          <footer class="overlay-modal-footer move-footer" style="display: flex; gap: 8px; justify-content: flex-end; padding: 16px 24px;">
+            <button class="outline-btn close-overlay-btn" (click)="cancelMove()" style="border: 1px solid var(--ngx-tree-border); padding: 8px 16px; border-radius: 6px; cursor: pointer; background: none; color: inherit;">Cancel</button>
+            <button class="action-btn-overlay confirm-move-btn" 
+                    [disabled]="!targetFolderId()" 
+                    (click)="confirmMove()" 
+                    style="padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer;">
+              Confirm Move
+            </button>
+          </footer>
+        </div>
+      </div>
+    } @placeholder {
+      <div class="overlay-loading-placeholder" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; color: white;">
+        Loading relocation portal...
+      </div>
+    }
   }
 </div>

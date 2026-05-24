@@ -15,6 +15,7 @@ const initialState: NgxTreeState = {
     dragOverItemId: null,
     position: null,
   },
+  foldersOnly: false,
 };
 
 export const NgxTreeStore = signalStore(
@@ -83,6 +84,11 @@ export const NgxTreeStore = signalStore(
       const traverse = (id: string, depth: number, parentId: string | null) => {
         const item = items[id];
         if (!item) return;
+
+        // Skip files if foldersOnly is active to act as a folder picker
+        if (store.foldersOnly() && !item.isFolder) {
+          return;
+        }
 
         const matches = matchedIds.has(id);
         const isAncestor = ancestorIds.has(id);
@@ -206,6 +212,10 @@ export const NgxTreeStore = signalStore(
 
       setSearchQuery(query: string) {
         patchState(store, { searchQuery: query });
+      },
+
+      setFoldersOnly(foldersOnly: boolean) {
+        patchState(store, { foldersOnly });
       },
 
       renameItem(id: string, newName: string) {

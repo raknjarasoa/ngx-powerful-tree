@@ -39,6 +39,7 @@ export class NgxPowerfulTree {
   searchQuery = input<string>('');
   multiSelect = input<boolean>(false);
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
+  foldersOnly = input<boolean>(false);
 
   // --- Outputs (Events) ---
   itemMoved = output<{
@@ -51,6 +52,7 @@ export class NgxPowerfulTree {
   itemDeleted = output<string>();
   selectionChanged = output<string[]>();
   focusedChanged = output<string | null>();
+  moveRequested = output<string>();
 
   // --- Signal-based View & Content Queries ---
   itemTemplate = contentChild<TemplateRef<any>>('itemTemplate');
@@ -102,6 +104,14 @@ export class NgxPowerfulTree {
         });
       }
     });
+
+    // 6. Sync foldersOnly setting for Picker view mode
+    effect(() => {
+      const foldersOnlyVal = this.foldersOnly();
+      untracked(() => {
+        this.store.setFoldersOnly(foldersOnlyVal);
+      });
+    });
   }
 
   // TrackBy function to avoid unnecessary DOM element recreating
@@ -130,6 +140,16 @@ export class NgxPowerfulTree {
   onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
     // Bubble up to consumer
     this.itemMoved.emit(event);
+  }
+
+  triggerMove(id: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.moveRequested.emit(id);
+  }
+
+  public moveItem(draggedId: string, targetId: string, position: DragPosition) {
+    this.store.moveItem(draggedId, targetId, position);
+    this.itemMoved.emit({ draggedId, targetId, position });
   }
 
   triggerRename(id: string, event: MouseEvent) {

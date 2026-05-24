@@ -1,4 +1,14 @@
-import { Component, OnInit, OnDestroy, signal, effect, inject, PLATFORM_ID } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  signal,
+  effect,
+  inject,
+  PLATFORM_ID,
+  viewChild,
+  computed,
+} from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
 
@@ -11,6 +21,7 @@ import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
 })
 export class AppComponent implements OnInit, OnDestroy {
   private platformId = inject(PLATFORM_ID);
+  primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
 
   // Tree Inputs Signals
   treeItems = signal<Record<string, NgxTreeItem>>({});
@@ -27,6 +38,17 @@ export class AppComponent implements OnInit, OnDestroy {
   logs = signal<string[]>([]);
   currentFps = signal<number>(60);
   private animFrameId: number | null = null;
+
+  // Move Overlay states
+  movingItemId = signal<string | null>(null);
+  targetFolderId = signal<string | null>(null);
+  isMoveOverlayOpen = signal<boolean>(false);
+  overlaySearchQuery = signal<string>('');
+
+  movingItemName = computed(() => {
+    const itemId = this.movingItemId();
+    return itemId ? this.treeItems()[itemId]?.name || '' : '';
+  });
 
   ngOnInit() {
     this.loadMockTree(this.totalItemCount());
@@ -189,6 +211,38 @@ export class AppComponent implements OnInit, OnDestroy {
 
   clearLogs() {
     this.logs.set([]);
+  }
+
+  // --- Relocation Methods ---
+
+  onMoveRequested(id: string) {
+    this.movingItemId.set(id);
+    this.targetFolderId.set(null);
+    this.overlaySearchQuery.set('');
+    this.isMoveOverlayOpen.set(true);
+    this.addLog(`[Move Request] Started relocate workflow for item: ${id}`);
+  }
+
+  onDestinationSelected(selected: string[]) {
+    this.targetFolderId.set(selected[0] || null);
+  }
+
+  confirmMove() {
+    const draggedId = this.movingItemId();
+    const targetId = this.targetFolderId();
+    const tree = this.primaryTree();
+    if (draggedId && targetId && tree) {
+      tree.moveItem(draggedId, targetId, 'inside');
+      this.addLog(`[Relocate] Moved item "${draggedId}" into folder "${targetId}"`);
+      this.cancelMove();
+    }
+  }
+
+  cancelMove() {
+    this.movingItemId.set(null);
+    this.targetFolderId.set(null);
+    this.overlaySearchQuery.set('');
+    this.isMoveOverlayOpen.set(false);
   }
 
   // Helper to add events in list logs
