@@ -102,6 +102,10 @@ export class NgxTreeRowDirective {
     return this.item().depth;
   }
 
+  @HostBinding('class.ngx-tree-row--depth-0') get isDepth0() {
+    return this.item().depth === 0;
+  }
+
   @HostBinding('attr.draggable') get isDraggable() {
     // Prevent dragging if renaming to avoid conflict
     return !this.item().editing;

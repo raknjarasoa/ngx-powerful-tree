@@ -131,14 +131,13 @@
     box-shadow 0.15s ease;
 }
 
-/* Nesting Guidelines using Variable-Driven Depth */
-.ngx-tree-row-wrapper::before {
+/* Nesting Guidelines centered perfectly in the indentation gap */
+.ngx-tree-row-content::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  /* Calculate guideline position relative to dynamic --ngx-tree-depth variable */
-  left: calc(1.25rem * (var(--ngx-tree-depth) - 1) + 1.25rem);
+  left: -0.625rem; /* Centers the guideline in the 1.25rem indent gap */
   width: 1px;
   background-color: var(--ngx-tree-border);
   opacity: 0.4;
@@ -146,8 +145,7 @@
 }
 
 /* Hide lines for root elements (depth 0) to keep the layout extremely clean */
-.ngx-tree-row-wrapper[style*='--ngx-tree-depth: 0']::before,
-.ngx-tree-row-wrapper[style*='--ngx-tree-depth:0']::before {
+.ngx-tree-row--depth-0 .ngx-tree-row-content::before {
   display: none;
 }
 
@@ -159,6 +157,7 @@
   height: 100%;
   padding: 0 12px;
   box-sizing: border-box;
+  position: relative; /* Relative positioning context for static connecting lines */
 }
 
 /* Chevron/Arrow controls */
