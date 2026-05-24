@@ -22,6 +22,7 @@ export class NgxTreeRowDirective {
   // Modern Signal Inputs
   item = input.required<NgxTreeProxyItem>();
   readOnly = input<boolean>(false);
+  locked = input<boolean>(false);
 
   // Outputs for parent notification
   itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
@@ -81,6 +82,10 @@ export class NgxTreeRowDirective {
     return this.item().editing;
   }
 
+  @HostBinding('class.ngx-tree-row--locked') get isLocked() {
+    return this.locked();
+  }
+
   @HostBinding('class.ngx-tree-row--dragging') get isDragging() {
     return this.store.dragState().draggedItemId === this.item().id;
   }
@@ -108,15 +113,15 @@ export class NgxTreeRowDirective {
   }
 
   @HostBinding('attr.draggable') get isDraggable() {
-    // Prevent dragging if in readOnly mode or renaming to avoid conflict
-    return !this.readOnly() && !this.item().editing;
+    // Prevent dragging if in readOnly mode, locked mode, or renaming to avoid conflict
+    return !this.readOnly() && !this.locked() && !this.item().editing;
   }
 
   // --- HTML5 Native Drag & Drop Event Listeners ---
 
   @HostListener('dragstart', ['$event'])
   onDragStart(event: DragEvent) {
-    if (this.readOnly() || this.item().editing) {
+    if (this.readOnly() || this.locked() || this.item().editing) {
       event.preventDefault();
       return;
     }
@@ -132,7 +137,7 @@ export class NgxTreeRowDirective {
 
   @HostListener('dragover', ['$event'])
   onDragOver(event: DragEvent) {
-    if (this.readOnly()) {
+    if (this.readOnly() || this.locked()) {
       return;
     }
     const dragState = this.store.dragState();
@@ -189,7 +194,7 @@ export class NgxTreeRowDirective {
 
   @HostListener('dragleave')
   onDragLeave() {
-    if (this.readOnly()) {
+    if (this.readOnly() || this.locked()) {
       return;
     }
     this.clearHoverTimer();
@@ -201,7 +206,7 @@ export class NgxTreeRowDirective {
 
   @HostListener('drop', ['$event'])
   onDrop(event: DragEvent) {
-    if (this.readOnly()) {
+    if (this.readOnly() || this.locked()) {
       return;
     }
     event.preventDefault();
@@ -228,7 +233,7 @@ export class NgxTreeRowDirective {
 
   @HostListener('dragend')
   onDragEnd() {
-    if (this.readOnly()) {
+    if (this.readOnly() || this.locked()) {
       return;
     }
     this.clearHoverTimer();

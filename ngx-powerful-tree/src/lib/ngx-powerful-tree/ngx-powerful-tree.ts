@@ -304,14 +304,14 @@ export class NgxPowerfulTree {
 
       case 'F2':
         event.preventDefault();
-        if (!this.readOnly()) {
+        if (!this.readOnly() && !currentItem.locked) {
           this.store.setEditingItemId(currentItem.id);
         }
         break;
 
       case 'Delete':
         event.preventDefault();
-        if (!this.readOnly()) {
+        if (!this.readOnly() && !currentItem.locked) {
           this.store.deleteItem(currentItem.id);
           this.itemDeleted.emit(currentItem.id);
         }

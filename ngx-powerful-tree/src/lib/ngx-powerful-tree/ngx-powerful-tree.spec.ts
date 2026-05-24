@@ -66,4 +66,62 @@ describe('NgxPowerfulTree', () => {
     fixture.detectChanges();
     expect(component.store.items()['folder-1']).toBeDefined(); // Should not be deleted!
   });
+
+  it('should propagate locked property from parent folder to children recursively', async () => {
+    fixture.componentRef.setInput('items', {
+      'locked-folder': {
+        id: 'locked-folder',
+        name: 'Locked Folder',
+        isFolder: true,
+        children: ['child-file'],
+        locked: true,
+      },
+      'child-file': { id: 'child-file', name: 'Child File', isFolder: false },
+    });
+    fixture.componentRef.setInput('rootIds', ['locked-folder']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.store.setExpanded('locked-folder', true);
+    fixture.detectChanges();
+
+    const flattened = component.store.flattenedVisibleItems();
+    const parentNode = flattened.find((i) => i.id === 'locked-folder');
+    const childNode = flattened.find((i) => i.id === 'child-file');
+
+    expect(parentNode?.locked).toBe(true);
+    expect(childNode?.locked).toBe(true); // Propagated successfully!
+  });
+
+  it('should block renaming locked items via F2 keydown', async () => {
+    fixture.componentRef.setInput('items', {
+      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
+    });
+    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.store.setFocusedItemId('locked-file');
+    const event = new KeyboardEvent('keydown', { key: 'F2' });
+    component.onKeyDown(event);
+
+    fixture.detectChanges();
+    expect(component.store.editingItemId()).toBeNull(); // Blocked!
+  });
+
+  it('should block deleting locked items via Delete keydown', async () => {
+    fixture.componentRef.setInput('items', {
+      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
+    });
+    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.store.setFocusedItemId('locked-file');
+    const event = new KeyboardEvent('keydown', { key: 'Delete' });
+    component.onKeyDown(event);
+
+    fixture.detectChanges();
+    expect(component.store.items()['locked-file']).toBeDefined(); // Blocked!
+  });
 });

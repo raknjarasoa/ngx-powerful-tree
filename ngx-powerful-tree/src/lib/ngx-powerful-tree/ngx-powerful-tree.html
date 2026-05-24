@@ -5,6 +5,7 @@
       ngxTreeRow
       [item]="item"
       [readOnly]="readOnly()"
+      [locked]="item.locked"
       (itemMoved)="onItemMoved($event)"
       (click)="onItemClick(item, $event)"
       [style.padding-left.rem]="item.depth * 1.25"
@@ -93,11 +94,18 @@
       <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch">
         {{ item.name }}
       </span>
+      @if (item.locked) {
+      <span class="ngx-tree-locked-badge" title="Locked (Read-Only)" style="margin-left: 6px; display: inline-flex; align-items: center; color: var(--ngx-tree-color-muted); opacity: 0.6; vertical-align: middle;">
+        <svg viewBox="0 0 24 24" width="14" height="14" style="fill: currentColor;">
+          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+        </svg>
+      </span>
+      }
       }
     </div>
 
     <!-- Inline Actions (Visible on Hover for wireframe demo controls) -->
-    @if (!readOnly()) {
+    @if (!item.locked && !readOnly()) {
     <div class="ngx-tree-row-actions">
       @if (item.isFolder) {
       <button

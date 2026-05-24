@@ -289,3 +289,19 @@
 .ngx-tree-empty-icon {
   opacity: 0.6;
 }
+
+/* Locked Row Styles */
+.ngx-tree-row--locked {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.ngx-tree-row--locked .ngx-tree-item-icon {
+  color: var(--ngx-tree-action-color);
+  opacity: 0.8;
+}
+
+.ngx-tree-row--locked .ngx-tree-item-name {
+  color: var(--ngx-tree-action-color);
+  font-style: italic;
+}

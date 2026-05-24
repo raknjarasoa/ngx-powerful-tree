@@ -81,7 +81,12 @@ export const NgxTreeStore = signalStore(
 
       const list: NgxTreeProxyItem[] = [];
 
-      const traverse = (id: string, depth: number, parentId: string | null) => {
+      const traverse = (
+        id: string,
+        depth: number,
+        parentId: string | null,
+        parentLocked: boolean
+      ) => {
         const item = items[id];
         if (!item) return;
 
@@ -105,6 +110,7 @@ export const NgxTreeStore = signalStore(
         const isSelected = selectedItems.has(id);
         const isFocused = focusedItemId === id;
         const isEditing = editingItemId === id;
+        const isLocked = parentLocked || !!item.locked;
 
         list.push({
           id,
@@ -118,6 +124,7 @@ export const NgxTreeStore = signalStore(
           focused: isFocused,
           editing: isEditing,
           matchesSearch: matches,
+          locked: isLocked,
           data: item.data,
         });
 
@@ -128,14 +135,14 @@ export const NgxTreeStore = signalStore(
           const shouldTraverseChildren = isSearching ? true : isExpanded;
           if (shouldTraverseChildren) {
             for (const childId of item.children) {
-              traverse(childId, depth + 1, id);
+              traverse(childId, depth + 1, id, isLocked);
             }
           }
         }
       };
 
       for (const rootId of rootIds) {
-        traverse(rootId, 0, null);
+        traverse(rootId, 0, null, false);
       }
 
       return list;

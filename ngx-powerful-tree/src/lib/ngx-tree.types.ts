@@ -4,6 +4,7 @@ export interface NgxTreeItem<T = any> {
   isFolder: boolean;
   children?: string[]; // IDs of children (only for folders)
   data?: T; // Custom optional payload
+  locked?: boolean; // Lock state for folder and all descendants
 }
 
 export type DragPosition = 'before' | 'after' | 'inside' | null;
@@ -30,6 +31,7 @@ export interface NgxTreeProxyItem<T = any> {
   focused: boolean;
   editing: boolean;
   matchesSearch: boolean;
+  locked: boolean; // Inherited locked state at runtime
   data?: T;
 }
 

@@ -70,7 +70,7 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
 
   test('should display and operate the tree successfully inside overlays', async ({ page }) => {
     // Check that overlay doesn't exist initially
-    await expect(page.locator('.overlay-backdrop')).not.toBeVisible();
+    await expect(page.locator('.overlay-backdrop')).toBeHidden();
 
     // Click button to trigger overlay dialog
     const overlayBtn = page.locator('.action-btn-overlay');
@@ -88,7 +88,7 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     // Close the overlay modal
     const closeBtn = page.locator('.close-overlay');
     await closeBtn.click();
-    await expect(backdrop).not.toBeVisible();
+    await expect(backdrop).toBeHidden();
   });
 
   test('should allow folder renaming inline', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     await editInput.press('Enter');
 
     // 4. Input should disappear and name should update in row
-    await expect(editInput).not.toBeVisible();
+    await expect(editInput).toBeHidden();
     await expect(firstRow).toContainText('Renamed Volume');
   });
 
@@ -146,10 +146,10 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     const pickerRow = pickerTree.locator('.ngx-tree-row').first();
     await pickerRow.hover();
     const pickerRenameBtn = pickerRow.locator('button[title="Rename"]');
-    await expect(pickerRenameBtn).not.toBeVisible(); // Completely hidden!
+    await expect(pickerRenameBtn).toBeHidden(); // Completely hidden!
 
     const pickerDeleteBtn = pickerRow.locator('button[title="Delete"]');
-    await expect(pickerDeleteBtn).not.toBeVisible(); // Completely hidden!
+    await expect(pickerDeleteBtn).toBeHidden(); // Completely hidden!
 
     // 5. Select a target destination in the picker to enable Confirm Move
     await pickerRow.click();
@@ -159,6 +159,31 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     // Close the relocation picker
     const cancelBtn = page.locator('.close-overlay-btn');
     await cancelBtn.click();
-    await expect(backdrop).not.toBeVisible();
+    await expect(backdrop).toBeHidden();
+  });
+
+  test('should render locked folders with a lock badge, no actions, and locked class', async ({
+    page,
+  }) => {
+    // Search to bring the virtualized 15th root item into DOM viewport
+    const searchInput = page.locator('#search-input');
+    await searchInput.fill('Other Users');
+    await page.waitForTimeout(500); // Allow indexing to filter row
+
+    // 1. Locate the locked folder by name
+    const otherUsersRow = page.locator('.ngx-tree-row:has-text("Other Users")');
+    await expect(otherUsersRow).toBeVisible();
+
+    // 2. Verify it has the locked status CSS class
+    await expect(otherUsersRow).toHaveClass(/ngx-tree-row--locked/);
+
+    // 3. Verify that the premium lock badge is rendered next to the name
+    const lockBadge = otherUsersRow.locator('.ngx-tree-locked-badge');
+    await expect(lockBadge).toBeVisible();
+
+    // 4. Verify that hover actions are completely disabled (hidden on hover)
+    await otherUsersRow.hover();
+    const actionsPanel = otherUsersRow.locator('.ngx-tree-row-actions');
+    await expect(actionsPanel).toBeHidden();
   });
 });

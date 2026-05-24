@@ -98,7 +98,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const rootIds: string[] = [];
 
     // Create 15 top-level root folders
-    const rootFolders = 15;
+    const rootFolders = 14;
     for (let i = 1; i <= rootFolders; i++) {
       const id = `root-folder-${i}`;
       items[id] = {
@@ -110,7 +110,44 @@ export class AppComponent implements OnInit, OnDestroy {
       rootIds.push(id);
     }
 
-    const folderPool = [...rootIds];
+    // Create 15th root folder: "Other Users" (Locked Branch)
+    const otherUsersId = 'root-folder-15';
+    items[otherUsersId] = {
+      id: otherUsersId,
+      name: '📁 Other Users (Locked Branch)',
+      isFolder: true,
+      children: [],
+      locked: true, // Native locking!
+    };
+    rootIds.push(otherUsersId);
+
+    // Create mock user sub-folders & files inheriting the locked state
+    const userNames = ['John Doe', 'Jane Smith', 'Alex Carter'];
+    userNames.forEach((userName, userIdx) => {
+      const userId = `other-user-${userIdx}`;
+      items[userId] = {
+        id: userId,
+        name: `📁 ${userName}`,
+        isFolder: true,
+        children: [],
+        locked: true,
+      };
+      items[otherUsersId].children?.push(userId);
+
+      const files = ['quarterly_review.xlsx', 'personal_notes.txt', 'profile_pic.png'];
+      files.forEach((file, fileIdx) => {
+        const fileId = `other-user-file-${userIdx}-${fileIdx}`;
+        items[fileId] = {
+          id: fileId,
+          name: `📄 ${file}`,
+          isFolder: false,
+          locked: true,
+        };
+        items[userId].children?.push(fileId);
+      });
+    });
+
+    const folderPool = [...rootIds].filter((id) => id !== otherUsersId); // Prevent random mocks inside Other Users
     const extensions = [
       'pdf',
       'txt',
