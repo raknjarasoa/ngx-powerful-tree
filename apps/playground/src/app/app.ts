@@ -3,7 +3,6 @@ import {
   OnInit,
   OnDestroy,
   signal,
-  effect,
   inject,
   PLATFORM_ID,
   viewChild,
