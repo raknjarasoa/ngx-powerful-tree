@@ -15,7 +15,10 @@
 
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   border: 1px solid var(--ngx-tree-border);
   border-radius: 4px;
   overflow: hidden;
@@ -51,7 +54,8 @@
   display: flex;
   align-items: center;
   width: 100%;
-  height: 40px;
+  min-height: 40px;
+  height: auto;
   box-sizing: border-box;
   outline: none;
   cursor: pointer;
@@ -113,14 +117,15 @@
   box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
 }
 
-/* Row Content Layout */
 .ngx-tree-row-content {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 100%;
-  padding: 0 12px;
+  min-height: 40px;
+  height: auto;
+  padding: 6px 12px;
   box-sizing: border-box;
+  min-width: 0; /* Enable proper flex shrinking down the hierarchy */
 }
 
 /* Expand Arrow */
@@ -177,10 +182,12 @@
 /* Name and Edit Input */
 .ngx-tree-item-text {
   flex-grow: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   min-width: 0;
   overflow: hidden;
+  gap: 4px;
 }
 
 .ngx-tree-item-name {
@@ -189,12 +196,25 @@
   display: inline-block;
   max-width: 100%;
   vertical-align: middle;
-  white-space: nowrap; /* Always lock name to a single line */
+  white-space: normal; /* Allow name to wrap when truncate is false */
+  word-break: break-word; /* Handle wrapping of long names elegantly */
+  line-height: 1.25; /* Add space between lines when wrapping */
 }
 
 .ngx-tree-item-name--truncate {
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ngx-tree-locked-badge {
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ngx-tree-color-muted, #64748b);
+  opacity: 0.6;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .ngx-tree-item-name--matched {
