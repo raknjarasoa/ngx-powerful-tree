@@ -42,6 +42,11 @@ export class NgxPowerfulTree {
   readOnly = input<boolean>(false);
   folderIcon = input<string>(''); // Global folder icon CSS class (e.g. 'fa-solid fa-folder')
   fileIcon = input<string>(''); // Global file icon CSS class (e.g. 'fa-solid fa-file')
+  truncate = input<boolean>(true); // Truncate text names with ellipsis by default
+  allowAdd = input<boolean>(true); // Allow child folders creation
+  allowRename = input<boolean>(true); // Allow node renaming
+  allowDelete = input<boolean>(true); // Allow node deletion
+  allowMove = input<boolean>(true); // Allow node relocation movement
 
   // --- Outputs (Events) ---
   itemMoved = output<{

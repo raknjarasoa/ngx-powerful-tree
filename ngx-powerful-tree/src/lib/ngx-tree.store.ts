@@ -112,6 +112,15 @@ export const NgxTreeStore = signalStore(
         const isEditing = editingItemId === id;
         const isLocked = parentLocked || !!item.locked;
 
+        // Smart children check depending on foldersOnly picker mode
+        const hasChildren = !!(item.isFolder && item.children && item.children.length > 0);
+        const hasFolderChildren = !!(
+          item.isFolder &&
+          item.children &&
+          item.children.some((childId) => items[childId]?.isFolder)
+        );
+        const hasVisibleChildren = store.foldersOnly() ? hasFolderChildren : hasChildren;
+
         list.push({
           id,
           name: item.name,
@@ -127,6 +136,7 @@ export const NgxTreeStore = signalStore(
           locked: isLocked,
           data: item.data,
           icon: item.icon,
+          hasVisibleChildren,
         });
 
         // Recursively traverse children if expanded (or if under active search)

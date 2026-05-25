@@ -67,6 +67,27 @@
           </button>
         </div>
 
+        <div class="control-group toggle-group">
+          <span>Truncate Names</span>
+          <button class="toggle-btn" [class.enabled]="truncateNames()" (click)="truncateNames.set(!truncateNames())">
+            {{ truncateNames() ? 'Ellipsis (Enabled)' : 'Wrap Names' }}
+          </button>
+        </div>
+
+        <div class="control-group toggle-group">
+          <span>Allow Rename</span>
+          <button class="toggle-btn" [class.enabled]="allowRename()" (click)="allowRename.set(!allowRename())">
+            {{ allowRename() ? 'Allowed' : 'Disabled' }}
+          </button>
+        </div>
+
+        <div class="control-group toggle-group">
+          <span>Allow Delete</span>
+          <button class="toggle-btn" [class.enabled]="allowDelete()" (click)="allowDelete.set(!allowDelete())">
+            {{ allowDelete() ? 'Allowed' : 'Disabled' }}
+          </button>
+        </div>
+
         <div class="control-group">
           <button class="action-btn-overlay" (click)="toggleOverlay()">
             {{ isOverlayOpen() ? 'Close Overlay Tree' : 'Open Tree in Overlay/Dialog' }}
@@ -149,6 +170,9 @@
             [multiSelect]="multiSelect()"
             [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
             [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
+            [truncate]="truncateNames()"
+            [allowRename]="allowRename()"
+            [allowDelete]="allowDelete()"
             (itemMoved)="onItemMoved($event)"
             (itemRenamed)="onItemRenamed($event)"
             (itemAdded)="onItemAdded($event)"
@@ -204,6 +228,7 @@
           [multiSelect]="false"
           [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
           [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
+          [truncate]="truncateNames()"
         >
         </ngx-powerful-tree>
       </div>
@@ -225,14 +250,14 @@
         <div class="overlay-modal" (click)="$event.stopPropagation()">
           <header class="overlay-modal-header">
             <div>
-              <h3>📁 Relocate Item</h3>
+              <h3>Relocate Item</h3>
               <p>Move <strong>{{ movingItemName() }}</strong> to another folder</p>
             </div>
             <button class="close-overlay" (click)="cancelMove()">×</button>
           </header>
           
-          <div class="overlay-search-group" style="padding: 12px 24px; display: flex; flex-direction: column; gap: 6px;">
-            <label for="overlay-search" style="font-size: 0.85rem; font-weight: 600; opacity: 0.8;">Filter Destination Folders</label>
+          <div class="overlay-search-group">
+            <label for="overlay-search">Filter Destination Folders</label>
             <input #overlaySearch 
                    id="overlay-search"
                    type="text" 
@@ -256,7 +281,7 @@
             </ngx-powerful-tree>
           </div>
 
-          <footer class="overlay-modal-footer move-footer" style="display: flex; gap: 8px; justify-content: flex-end; padding: 16px 24px;">
+          <footer class="overlay-modal-footer move-footer">
             <button class="outline-btn close-overlay-btn" (click)="cancelMove()" style="border: 1px solid var(--ngx-tree-border); padding: 8px 16px; border-radius: 6px; cursor: pointer; background: none; color: inherit;">Cancel</button>
             <button class="action-btn-overlay confirm-move-btn" 
                     [disabled]="!targetFolderId()" 

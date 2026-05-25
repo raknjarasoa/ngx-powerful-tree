@@ -180,13 +180,21 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  overflow: hidden;
 }
 
 .ngx-tree-item-name {
-  white-space: nowrap;
+  font-size: 0.95rem;
+  min-width: 0;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  white-space: nowrap; /* Always lock name to a single line */
+}
+
+.ngx-tree-item-name--truncate {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.95rem;
 }
 
 .ngx-tree-item-name--matched {

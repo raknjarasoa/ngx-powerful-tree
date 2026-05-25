@@ -40,7 +40,7 @@
 <ng-template #defaultTemplate let-item>
   <div class="ngx-tree-row-content">
     <!-- Expand / Collapse Arrow -->
-    @if (item.isFolder) {
+    @if (item.isFolder && item.hasVisibleChildren) {
     <button
       class="ngx-tree-arrow-btn"
       (click)="toggleExpand(item.id, $event)"
@@ -95,7 +95,7 @@
         type="text"
       />
       } @else {
-      <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch">
+      <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch" [class.ngx-tree-item-name--truncate]="truncate()">
         {{ item.name }}
       </span>
       @if (item.locked) {
@@ -111,7 +111,7 @@
     <!-- Inline Actions (Visible on Hover for wireframe demo controls) -->
     @if (!item.locked && !readOnly()) {
     <div class="ngx-tree-row-actions">
-      @if (item.isFolder) {
+      @if (item.isFolder && allowAdd()) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerAddFolder(item.id, $event)"
@@ -123,11 +123,14 @@
         </svg>
       </button>
       }
+      @if (allowMove()) {
       <button class="ngx-tree-action-btn" (click)="triggerMove(item.id, $event)" title="Move to Folder" tabindex="-1">
         <svg viewBox="0 0 24 24" width="16" height="16">
           <path fill="currentColor" d="M19 15l-1.41-1.41L13 18.17V4h-2v14.17l-4.59-4.58L5 15l7 7 7-7z"/>
         </svg>
       </button>
+      }
+      @if (allowRename()) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerRename(item.id, $event)"
@@ -141,6 +144,8 @@
           />
         </svg>
       </button>
+      }
+      @if (allowDelete()) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerDelete(item.id, $event)"
@@ -154,6 +159,7 @@
           />
         </svg>
       </button>
+      }
     </div>
     }
   </div>

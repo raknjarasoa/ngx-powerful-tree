@@ -35,6 +35,7 @@ export interface NgxTreeProxyItem<T = any> {
   locked: boolean; // Inherited locked state at runtime
   data?: T;
   icon?: string; // Runtime resolved custom icon
+  hasVisibleChildren: boolean; // Dynamic child count check for chevron rendering
 }
 
 export interface NgxTreeState<T = any> {

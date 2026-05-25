@@ -524,3 +524,30 @@ body {
   line-height: 1.3;
   text-align: center;
 }
+
+/* Relocation Modal Search & Layout Styles */
+.overlay-search-group {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--pg-border);
+  background-color: var(--pg-surface);
+}
+
+.overlay-search-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pg-color-muted);
+}
+
+.overlay-search-group .control-input {
+  width: 100%;
+}
+
+.overlay-modal-footer.move-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 20px;
+}

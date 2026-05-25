@@ -31,6 +31,9 @@ export class AppComponent implements OnInit, OnDestroy {
   searchQuery = signal<string>('');
   multiSelect = signal<boolean>(true);
   useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
+  allowRename = signal<boolean>(true); // Dynamic user access control for renaming
+  allowDelete = signal<boolean>(true); // Dynamic user access control for deleting
+  truncateNames = signal<boolean>(true); // Dynamic control for name truncation
 
   // Stats & States Signals
   totalItemCount = signal<number>(100000);
