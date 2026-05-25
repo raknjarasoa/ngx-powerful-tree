@@ -60,6 +60,13 @@
           </button>
         </div>
 
+        <div class="control-group toggle-group">
+          <span>Custom Icons</span>
+          <button class="toggle-btn" [class.enabled]="useCustomIcons()" (click)="useCustomIcons.set(!useCustomIcons())">
+            {{ useCustomIcons() ? 'FontAwesome (Enabled)' : 'Default SVGs' }}
+          </button>
+        </div>
+
         <div class="control-group">
           <button class="action-btn-overlay" (click)="toggleOverlay()">
             {{ isOverlayOpen() ? 'Close Overlay Tree' : 'Open Tree in Overlay/Dialog' }}
@@ -140,6 +147,8 @@
             [rootIds]="treeRootIds()"
             [searchQuery]="searchQuery()"
             [multiSelect]="multiSelect()"
+            [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
+            [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
             (itemMoved)="onItemMoved($event)"
             (itemRenamed)="onItemRenamed($event)"
             (itemAdded)="onItemAdded($event)"
@@ -193,6 +202,8 @@
           [rootIds]="treeRootIds()"
           [searchQuery]="searchQuery()"
           [multiSelect]="false"
+          [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
+          [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
         >
         </ngx-powerful-tree>
       </div>
@@ -239,6 +250,8 @@
               [readOnly]="true"
               [searchQuery]="overlaySearchQuery()"
               [multiSelect]="false"
+              [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
+              [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
               (selectionChanged)="onDestinationSelected($event)">
             </ngx-powerful-tree>
           </div>
@@ -255,7 +268,7 @@
         </div>
       </div>
     } @placeholder {
-      <div class="overlay-loading-placeholder" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; color: white;">
+      <div class="overlay-loading-placeholder" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; color: white;">
         Loading relocation portal...
       </div>
     }

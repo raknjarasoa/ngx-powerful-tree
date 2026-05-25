@@ -1,31 +1,23 @@
-/* Sleek Modern Wireframe Tree Styling */
+/* Minimal & Vital Tree Styling */
 
 .ngx-tree-container {
-  /* Light Theme CSS Custom Variables */
+  /* Light Theme Variables */
   --ngx-tree-bg: #ffffff;
   --ngx-tree-color: #0f172a;
   --ngx-tree-selected-bg: #e2e8f0;
   --ngx-tree-hover-bg: #f8fafc;
   --ngx-tree-focused-outline: #3b82f6;
-  --ngx-tree-active-border: #cbd5e1;
   --ngx-tree-drag-border: #2563eb;
-  --ngx-tree-accent: #fef08a; /* Yellow highlight for matches */
+  --ngx-tree-accent: #fef08a; /* Highlight for search matches */
   --ngx-tree-action-color: #64748b;
   --ngx-tree-action-hover: #0f172a;
-  --ngx-tree-border: #e2e8f0;
+  --ngx-tree-border: #cbd5e1;
 
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   border: 1px solid var(--ngx-tree-border);
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
   height: 100%;
   display: flex;
@@ -33,7 +25,7 @@
   box-sizing: border-box;
 }
 
-/* Automatic Dark Mode Support */
+/* Dark Theme Variables */
 @media (prefers-color-scheme: dark) {
   .ngx-tree-container {
     --ngx-tree-bg: #0f172a;
@@ -41,12 +33,11 @@
     --ngx-tree-selected-bg: #1e293b;
     --ngx-tree-hover-bg: #1e293b80;
     --ngx-tree-focused-outline: #60a5fa;
-    --ngx-tree-active-border: #475569;
     --ngx-tree-drag-border: #60a5fa;
     --ngx-tree-accent: #854d0e;
     --ngx-tree-action-color: #94a3b8;
     --ngx-tree-action-hover: #ffffff;
-    --ngx-tree-border: #1e293b;
+    --ngx-tree-border: #334155;
   }
 }
 
@@ -60,18 +51,15 @@
   display: flex;
   align-items: center;
   width: 100%;
-  height: 40px; /* Aligned with default itemSize input */
+  height: 40px;
   box-sizing: border-box;
   outline: none;
   cursor: pointer;
   user-select: none;
   position: relative;
-  border-bottom: 1px solid transparent;
-  border-top: 1px solid transparent;
-  transition: background-color 0.15s ease;
 }
 
-/* Hover & Selected Row States */
+/* Hover & Selected States */
 .ngx-tree-row-wrapper:hover {
   background-color: var(--ngx-tree-hover-bg);
 }
@@ -80,7 +68,7 @@
   background-color: var(--ngx-tree-selected-bg);
 }
 
-/* Accessibility Focus Outline */
+/* Focus Outline */
 .ngx-tree-row-wrapper.ngx-tree-row--focused {
   outline: 2px solid var(--ngx-tree-focused-outline);
   outline-offset: -2px;
@@ -91,28 +79,25 @@
   background-color: var(--ngx-tree-hover-bg);
 }
 
-/* HTML5 Dragging State opacity */
+/* Dragging Opacity */
 .ngx-tree-row-wrapper.ngx-tree-row--dragging {
-  opacity: 0.4;
-  background-color: var(--ngx-tree-hover-bg);
+  opacity: 0.5;
   border: 1px dashed var(--ngx-tree-action-color);
 }
 
-/* Base style for fluid drag indicator overlay (prevents row dimension shifts) */
+/* Drag indicator overlay */
 .ngx-tree-row-wrapper::after {
   content: '';
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 8px;
+  right: 8px;
   height: 2px;
   background-color: var(--ngx-tree-drag-border);
   opacity: 0;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.1s ease;
 }
 
-/* Fluid Drag Target indicators positioned absolutely */
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-before::after {
   top: 0;
   opacity: 1;
@@ -126,27 +111,6 @@
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
   background-color: var(--ngx-tree-selected-bg) !important;
   box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
-  transition:
-    background-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-/* Nesting Guidelines centered perfectly in the indentation gap */
-.ngx-tree-row-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -0.625rem; /* Centers the guideline in the 1.25rem indent gap */
-  width: 1px;
-  background-color: var(--ngx-tree-border);
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* Hide lines for root elements (depth 0) to keep the layout extremely clean */
-.ngx-tree-row--depth-0 .ngx-tree-row-content::before {
-  display: none;
 }
 
 /* Row Content Layout */
@@ -157,10 +121,9 @@
   height: 100%;
   padding: 0 12px;
   box-sizing: border-box;
-  position: relative; /* Relative positioning context for static connecting lines */
 }
 
-/* Chevron/Arrow controls */
+/* Expand Arrow */
 .ngx-tree-arrow-btn {
   display: flex;
   align-items: center;
@@ -171,21 +134,15 @@
   margin-right: 4px;
   color: var(--ngx-tree-action-color);
   cursor: pointer;
-  border-radius: 4px;
-  transition:
-    transform 0.15s ease,
-    color 0.15s ease;
 }
 
 .ngx-tree-arrow-btn:hover {
   color: var(--ngx-tree-action-hover);
-  background-color: rgba(100, 116, 139, 0.1);
 }
 
 .ngx-tree-arrow-icon {
   width: 18px;
   height: 18px;
-  transition: transform 0.15s ease;
 }
 
 .ngx-tree-arrow-icon--expanded {
@@ -193,18 +150,31 @@
 }
 
 .ngx-tree-arrow-placeholder {
-  width: 26px; /* Width of arrow button + margin to align file items */
+  width: 26px; /* Space equivalent to expand button to align files with folders */
 }
 
-/* File/Folder Icons */
+/* Icons */
 .ngx-tree-item-icon {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   color: var(--ngx-tree-action-color);
   margin-right: 8px;
+  width: 20px;
+  height: 20px;
 }
 
-/* Text elements & Editing input */
+/* Custom icon support via FontAwesome or similar classes */
+.ngx-tree-item-icon i {
+  font-size: 1rem;
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Name and Edit Input */
 .ngx-tree-item-text {
   flex-grow: 1;
   display: flex;
@@ -223,35 +193,31 @@
   background-color: var(--ngx-tree-accent);
   color: #000000;
   padding: 0 2px;
-  border-radius: 2px;
-  font-weight: 500;
+  font-weight: bold;
 }
 
 .ngx-tree-edit-input {
   width: 100%;
-  padding: 4px 8px;
+  padding: 4px;
   border: 1px solid var(--ngx-tree-focused-outline);
-  border-radius: 4px;
+  border-radius: 2px;
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
   font-size: 0.9rem;
   outline: none;
 }
 
-/* Hover Actions panel */
+/* Actions panel - simple hover visibility */
 .ngx-tree-row-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
   margin-left: auto;
 }
 
 .ngx-tree-row-wrapper:hover .ngx-tree-row-actions {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .ngx-tree-action-btn {
@@ -263,27 +229,22 @@
   color: var(--ngx-tree-action-color);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
 }
 
 .ngx-tree-action-btn:hover {
   color: var(--ngx-tree-action-hover);
-  background-color: rgba(100, 116, 139, 0.15);
 }
 
-/* Empty State Styling */
+/* Empty State */
 .ngx-tree-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 16px;
+  padding: 40px 16px;
   color: var(--ngx-tree-action-color);
   font-size: 0.95rem;
-  gap: 12px;
+  gap: 8px;
 }
 
 .ngx-tree-empty-icon {
@@ -292,16 +253,10 @@
 
 /* Locked Row Styles */
 .ngx-tree-row--locked {
-  opacity: 0.75;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.ngx-tree-row--locked .ngx-tree-item-icon {
-  color: var(--ngx-tree-action-color);
-  opacity: 0.8;
-}
-
 .ngx-tree-row--locked .ngx-tree-item-name {
-  color: var(--ngx-tree-action-color);
   font-style: italic;
 }

@@ -30,6 +30,7 @@ export class AppComponent implements OnInit, OnDestroy {
   treeRootIds = signal<string[]>([]);
   searchQuery = signal<string>('');
   multiSelect = signal<boolean>(true);
+  useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
 
   // Stats & States Signals
   totalItemCount = signal<number>(100000);
@@ -103,7 +104,7 @@ export class AppComponent implements OnInit, OnDestroy {
       const id = `root-folder-${i}`;
       items[id] = {
         id,
-        name: `📁 Archive Volume ${i}`,
+        name: `Archive Volume ${i}`,
         isFolder: true,
         children: [],
       };
@@ -114,7 +115,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const otherUsersId = 'root-folder-15';
     items[otherUsersId] = {
       id: otherUsersId,
-      name: '📁 Other Users (Locked Branch)',
+      name: 'Other Users (Locked Branch)',
       isFolder: true,
       children: [],
       locked: true, // Native locking!
@@ -127,21 +128,27 @@ export class AppComponent implements OnInit, OnDestroy {
       const userId = `other-user-${userIdx}`;
       items[userId] = {
         id: userId,
-        name: `📁 ${userName}`,
+        name: userName,
         isFolder: true,
         children: [],
         locked: true,
       };
       items[otherUsersId].children?.push(userId);
 
-      const files = ['quarterly_review.xlsx', 'personal_notes.txt', 'profile_pic.png'];
-      files.forEach((file, fileIdx) => {
+      // Demonstrate individual item-level custom icon override using FontAwesome classes
+      const files = [
+        { name: 'quarterly_review.xlsx', icon: 'fa-solid fa-file-excel' },
+        { name: 'personal_notes.txt', icon: 'fa-solid fa-file-lines' },
+        { name: 'profile_pic.png', icon: 'fa-solid fa-file-image' },
+      ];
+      files.forEach((fileObj, fileIdx) => {
         const fileId = `other-user-file-${userIdx}-${fileIdx}`;
         items[fileId] = {
           id: fileId,
-          name: `📄 ${file}`,
+          name: fileObj.name,
           isFolder: false,
           locked: true,
+          icon: fileObj.icon, // Node-level custom icon override!
         };
         items[userId].children?.push(fileId);
       });
@@ -172,7 +179,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (isFolder) {
         items[id] = {
           id,
-          name: `📁 Collection_${i}`,
+          name: `Collection_${i}`,
           isFolder: true,
           children: [],
         };
@@ -182,7 +189,7 @@ export class AppComponent implements OnInit, OnDestroy {
         const ext = extensions[Math.floor(Math.random() * extensions.length)];
         items[id] = {
           id,
-          name: `📄 document_report_${i}.${ext}`,
+          name: `document_report_${i}.${ext}`,
           isFolder: false,
         };
         items[parentId].children?.push(id);

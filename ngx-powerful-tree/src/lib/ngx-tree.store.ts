@@ -126,6 +126,7 @@ export const NgxTreeStore = signalStore(
           matchesSearch: matches,
           locked: isLocked,
           data: item.data,
+          icon: item.icon,
         });
 
         // Recursively traverse children if expanded (or if under active search)
