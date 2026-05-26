@@ -8,7 +8,8 @@
     [
       "@semantic-release/npm",
       {
-        "pkgRoot": "ngx-powerful-tree"
+        "pkgRoot": "ngx-powerful-tree",
+        "npmPublish": false
       }
     ],
     "@semantic-release/github",
