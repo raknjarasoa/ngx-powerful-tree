@@ -5,7 +5,6 @@ import {
   input,
   output,
   computed,
-  signal,
   OnInit,
   NgZone,
   DestroyRef,
@@ -24,7 +23,7 @@ import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
     '[attr.aria-selected]': 'ariaSelected()',
     '[attr.aria-level]': 'ariaLevel()',
     '[attr.tabindex]': 'tabindex()',
-    '[class.ngx-tree-row]': 'isRow()',
+    class: 'ngx-tree-row',
     '[class.ngx-tree-row--folder]': 'isFolder()',
     '[class.ngx-tree-row--file]': 'isFile()',
     '[class.ngx-tree-row--expanded]': 'isExpanded()',
@@ -66,7 +65,7 @@ export class NgxTreeRowDirective implements OnInit {
   ariaLevel = computed(() => this.item().depth + 1);
   tabindex = computed(() => (this.item().focused ? '0' : '-1'));
 
-  isRow = signal(true);
+  readonly isRow = true;
   isFolder = computed(() => this.item().isFolder);
   isFile = computed(() => !this.item().isFolder);
   isExpanded = computed(() => this.item().isFolder && this.item().expanded);

@@ -102,8 +102,9 @@
     </div>
 
     @if (!item.locked && !readOnly()) {
+    @let actions = resolvedActions();
     <div class="ngx-tree-row-actions">
-      @if (item.isFolder && isActionEnabled(resolvedActions().add, item)) {
+      @if (item.isFolder && isActionEnabled(actions.add, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerAddFolder(item.id, $event)"
@@ -114,7 +115,7 @@
           <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
         </svg>
       </button>
-      } @if (isActionEnabled(resolvedActions().move, item)) {
+      } @if (isActionEnabled(actions.move, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerMove(item.id, $event)"
@@ -128,7 +129,7 @@
           />
         </svg>
       </button>
-      } @if (isActionEnabled(resolvedActions().rename, item)) {
+      } @if (isActionEnabled(actions.rename, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerRename(item.id, $event)"
@@ -142,7 +143,7 @@
           />
         </svg>
       </button>
-      } @if (isActionEnabled(resolvedActions().delete, item)) {
+      } @if (isActionEnabled(actions.delete, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerDelete(item.id, $event)"

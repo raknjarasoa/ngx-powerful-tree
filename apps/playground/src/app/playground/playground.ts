@@ -9,7 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { DecimalPipe, isPlatformBrowser } from '@angular/common';
 import {
   DragPosition,
   NgxPowerfulTree,
@@ -22,7 +22,7 @@ import {
 @Component({
   selector: 'app-playground',
   standalone: true,
-  imports: [CommonModule, NgxPowerfulTree],
+  imports: [DecimalPipe, NgxPowerfulTree],
   templateUrl: './playground.html',
   styleUrl: './playground.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

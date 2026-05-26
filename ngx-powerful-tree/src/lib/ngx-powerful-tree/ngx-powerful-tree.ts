@@ -351,9 +351,6 @@ export class NgxPowerfulTree implements AfterViewInit {
     const currentItem = list[focusedIdx];
 
     if (currentItem.editing) {
-      if (event.key === 'Escape' || event.key === 'Enter') {
-        return;
-      }
       return;
     }
 

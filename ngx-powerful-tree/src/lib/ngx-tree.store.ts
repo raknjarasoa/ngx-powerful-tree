@@ -182,18 +182,13 @@ export const NgxTreeStore = signalStore(
     // read structural + state separately for hot paths.
     const flattenedVisibleItems = computed<NgxTreeProxyItem[]>(() => {
       const { list } = flattenedStructure();
-      const expandedItems = store.expandedItems();
       const selectedItems = store.selectedItems();
       const focusedItemId = store.focusedItemId();
       const editingItemId = store.editingItemId();
-      const { ancestorIds, isSearching } = searchIndex();
 
       const out: NgxTreeProxyItem[] = new Array(list.length);
       for (let i = 0; i < list.length; i++) {
         const node = list[i];
-        const isExpanded = isSearching
-          ? ancestorIds.has(node.id) || expandedItems.has(node.id)
-          : expandedItems.has(node.id);
         out[i] = {
           id: node.id,
           name: node.name,
@@ -201,7 +196,7 @@ export const NgxTreeStore = signalStore(
           parentId: node.parentId,
           children: node.children,
           depth: node.depth,
-          expanded: isExpanded,
+          expanded: node.expanded, // already computed by flattenedStructure
           selected: selectedItems.has(node.id),
           focused: focusedItemId === node.id,
           editing: editingItemId === node.id,
@@ -238,6 +233,13 @@ export const NgxTreeStore = signalStore(
       return false;
     };
 
+    const applyExpanded = (id: string, isExpanded: boolean) => {
+      const expanded = new Set(store.expandedItems());
+      if (isExpanded) expanded.add(id);
+      else expanded.delete(id);
+      patchState(store, { expandedItems: expanded });
+    };
+
     return {
       isLocked,
 
@@ -259,17 +261,11 @@ export const NgxTreeStore = signalStore(
       },
 
       toggleExpand(id: string) {
-        const expanded = new Set(store.expandedItems());
-        if (expanded.has(id)) expanded.delete(id);
-        else expanded.add(id);
-        patchState(store, { expandedItems: expanded });
+        applyExpanded(id, !store.expandedItems().has(id));
       },
 
       setExpanded(id: string, isExpanded: boolean) {
-        const expanded = new Set(store.expandedItems());
-        if (isExpanded) expanded.add(id);
-        else expanded.delete(id);
-        patchState(store, { expandedItems: expanded });
+        applyExpanded(id, isExpanded);
       },
 
       expandAll() {
