@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NgxTreeStore } from './ngx-tree.store';
-import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
+import { DragPosition, NgxTreeStructuralItem } from './ngx-tree.types';
 
 @Directive({
   selector: '[ngxTreeRow]',
@@ -51,8 +51,7 @@ export class NgxTreeRowDirective implements OnInit {
   private dragOverRafId: number | null = null;
   private dragOverPendingY: number | null = null;
 
-  // Modern Signal Inputs
-  item = input.required<NgxTreeProxyItem>();
+  item = input.required<NgxTreeStructuralItem>();
   readOnly = input<boolean>(false);
   locked = input<boolean>(false);
 
@@ -61,28 +60,34 @@ export class NgxTreeRowDirective implements OnInit {
 
   // Derived state signals to avoid legacy getters
   ariaExpanded = computed(() => (this.item().isFolder ? this.item().expanded.toString() : null));
-  ariaSelected = computed(() => this.item().selected);
+  ariaSelected = computed(() => this.store.selectedItems().has(this.item().id));
   ariaLevel = computed(() => this.item().depth + 1);
-  tabindex = computed(() => (this.item().focused ? '0' : '-1'));
+  tabindex = computed(() => (this.store.focusedItemId() === this.item().id ? '0' : '-1'));
 
   readonly isRow = true;
   isFolder = computed(() => this.item().isFolder);
   isFile = computed(() => !this.item().isFolder);
   isExpanded = computed(() => this.item().isFolder && this.item().expanded);
   isCollapsed = computed(() => this.item().isFolder && !this.item().expanded);
-  isSelected = computed(() => this.item().selected);
-  isFocused = computed(() => this.item().focused);
-  isEditing = computed(() => this.item().editing);
+  isSelected = computed(() => this.store.selectedItems().has(this.item().id));
+  isFocused = computed(() => this.store.focusedItemId() === this.item().id);
+  isEditing = computed(() => this.store.editingItemId() === this.item().id);
   isLocked = computed(() => this.locked());
+  private dragOverPosition = computed(() => {
+    const ds = this.store.dragState();
+    if (ds.dragOverItemId !== this.item().id) return null;
+    return ds.position;
+  });
   isDragging = computed(() => this.store.dragState().draggedItemId === this.item().id);
-
-  isDragOverBefore = computed(() => this.isDragOverState('before'));
-  isDragOverAfter = computed(() => this.isDragOverState('after'));
-  isDragOverInside = computed(() => this.isDragOverState('inside'));
+  isDragOverBefore = computed(() => this.dragOverPosition() === 'before');
+  isDragOverAfter = computed(() => this.dragOverPosition() === 'after');
+  isDragOverInside = computed(() => this.dragOverPosition() === 'inside');
 
   cssDepth = computed(() => this.item().depth);
   isDepth0 = computed(() => this.item().depth === 0);
-  isDraggable = computed(() => !this.readOnly() && !this.locked() && !this.item().editing);
+  isDraggable = computed(
+    () => !this.readOnly() && !this.locked() && this.store.editingItemId() !== this.item().id
+  );
 
   ngOnInit() {
     if (!isPlatformBrowser(this.platformId)) {
@@ -118,7 +123,7 @@ export class NgxTreeRowDirective implements OnInit {
   // --- HTML5 Native Drag & Drop Event Handlers (Outside Angular Zone for 60 FPS) ---
 
   private handleDragStart(event: DragEvent) {
-    if (this.readOnly() || this.locked() || this.item().editing) {
+    if (this.readOnly() || this.locked() || this.store.editingItemId() === this.item().id) {
       event.preventDefault();
       return;
     }
@@ -272,7 +277,6 @@ export class NgxTreeRowDirective implements OnInit {
   }
 
   private handleDragEnd() {
-    if (this.readOnly() || this.locked()) return;
     this.clearHoverTimer();
     this.cancelDragOverRaf();
     this.ngZone.run(() => {
@@ -287,10 +291,5 @@ export class NgxTreeRowDirective implements OnInit {
       window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
     }
-  }
-
-  private isDragOverState(pos: DragPosition): boolean {
-    const dragState = this.store.dragState();
-    return dragState.dragOverItemId === this.item().id && dragState.position === pos;
   }
 }

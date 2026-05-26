@@ -15,7 +15,7 @@ import {
   NgxPowerfulTree,
   NgxTreeActions,
   NgxTreeNode,
-  NgxTreeProxyItem,
+  NgxTreeStructuralItem,
   expandItems,
 } from 'ngx-powerful-tree';
 
@@ -47,7 +47,7 @@ export class PlaygroundComponent {
   primaryActions = computed<NgxTreeActions>(() => ({
     rename: this.allowRename(),
     delete: this.allowDelete()
-      ? (item: NgxTreeProxyItem) => !item.isFolder || item.children.length === 0
+      ? (item: NgxTreeStructuralItem) => !item.isFolder || item.children.length === 0
       : false,
   }));
 

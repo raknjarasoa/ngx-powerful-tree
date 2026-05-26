@@ -12,7 +12,12 @@ export function expandItems<T>(
 ): NgxTreeNode<T>[] {
   const visit = (id: string): NgxTreeNode<T> | null => {
     const item = items[id];
-    if (!item) return null;
+    if (!item) {
+      if (typeof ngDevMode !== 'undefined' && ngDevMode) {
+        console.warn(`ngx-powerful-tree: expandItems — unknown id "${id}"`);
+      }
+      return null;
+    }
     const children = item.children?.map(visit).filter((c): c is NgxTreeNode<T> => c !== null);
     return {
       id: item.id,

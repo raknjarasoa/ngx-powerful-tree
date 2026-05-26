@@ -3,6 +3,7 @@ import { signalStore, withState, withComputed, withMethods, patchState } from '@
 import {
   NgxTreeItem,
   NgxTreeProxyItem,
+  NgxTreeStructuralItem,
   NgxTreeState,
   DragPosition,
   SelectableTypes,
@@ -34,6 +35,8 @@ const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableT
 export const NgxTreeStore = signalStore(
   withState(initialState),
   withComputed((store) => {
+    // Reflects the last committed items snapshot. Methods that spread-copy
+    // items and then read parentMap() will see the pre-mutation mapping.
     const parentMap = computed(() => {
       const items = store.items();
       const mapping: Record<string, string> = {};
@@ -99,20 +102,7 @@ export const NgxTreeStore = signalStore(
       const foldersOnly = selectableTypes === 'folders'; // hide files in folder-only mode
       const { matchedIds, ancestorIds, isSearching } = searchIndex();
 
-      const list: Array<{
-        id: string;
-        depth: number;
-        parentId: string | null;
-        isFolder: boolean;
-        children: string[];
-        matchesSearch: boolean;
-        locked: boolean;
-        hasVisibleChildren: boolean;
-        expanded: boolean;
-        name: string;
-        icon: string | undefined;
-        data: unknown;
-      }> = [];
+      const list: NgxTreeStructuralItem[] = [];
       const indexById: Record<string, number> = {};
 
       const traverse = (
@@ -442,6 +432,7 @@ export const NgxTreeStore = signalStore(
       },
 
       moveItem(draggedId: string, targetId: string, position: DragPosition): boolean {
+        if (!position) return false;
         const current = store.items();
         if (!current[draggedId] || !current[targetId] || draggedId === targetId) return false;
         if (isLocked(draggedId)) return false;

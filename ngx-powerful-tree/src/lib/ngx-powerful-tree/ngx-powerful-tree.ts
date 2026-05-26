@@ -28,6 +28,7 @@ import {
   NgxTreeItem,
   NgxTreeNode,
   NgxTreeProxyItem,
+  NgxTreeStructuralItem,
   SelectableTypes,
 } from '../ngx-tree.types';
 import { flattenNodes } from '../ngx-tree.utils';
@@ -36,7 +37,7 @@ import { flattenNodes } from '../ngx-tree.utils';
  * Per-action enable resolver. `true`/`false` toggles every row; a function
  * is called per row and receives the rendered NgxTreeProxyItem.
  */
-export type NgxTreeActionResolver = boolean | ((item: NgxTreeProxyItem) => boolean);
+export type NgxTreeActionResolver = boolean | ((item: NgxTreeStructuralItem) => boolean);
 
 /**
  * Inline-action availability. Each key defaults to `true` when omitted, so
@@ -58,7 +59,7 @@ const DEFAULT_ACTIONS: Required<NgxTreeActions> = {
 
 export function isActionEnabled(
   resolver: NgxTreeActionResolver | undefined,
-  item: NgxTreeProxyItem
+  item: NgxTreeStructuralItem
 ): boolean {
   if (resolver === undefined) return true;
   return typeof resolver === 'function' ? resolver(item) : resolver;
@@ -100,8 +101,9 @@ export class NgxPowerfulTree implements AfterViewInit {
   private injector = inject(Injector);
 
   // --- Signal Inputs ---
-  // `nodes` seeds the tree on first emission; the store owns truth after that.
-  // Use `reload(nodes)` to swap the dataset explicitly.
+  // Seed dataset. Read once on first emission; the store owns truth after
+  // that. If your data arrives asynchronously, wait until it is ready
+  // before binding, or call `reload(nodes)` to swap after initialization.
   nodes = input.required<NgxTreeNode[]>();
   searchQuery = input<string>('');
   multiSelect = input<boolean>(false);
@@ -230,13 +232,13 @@ export class NgxPowerfulTree implements AfterViewInit {
     });
   }
 
-  trackById(index: number, item: NgxTreeProxyItem): string {
+  trackById(index: number, item: NgxTreeStructuralItem): string {
     return item.id;
   }
 
   // --- Action Handlers ---
 
-  onItemClick(item: NgxTreeProxyItem, event: MouseEvent) {
+  onItemClick(item: NgxTreeStructuralItem, event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (target.closest('button') || target.closest('input')) {
       return;
@@ -336,11 +338,11 @@ export class NgxPowerfulTree implements AfterViewInit {
   // --- Keyboard Handler ---
 
   onKeyDown(event: KeyboardEvent) {
-    const list = this.store.flattenedVisibleItems();
+    const { list, indexById } = this.store.flattenedStructure();
     if (list.length === 0) return;
 
     const focusedId = this.store.focusedItemId();
-    const focusedIdx = list.findIndex((item) => item.id === focusedId);
+    const focusedIdx = focusedId !== null ? (indexById[focusedId] ?? -1) : -1;
 
     if (focusedIdx === -1) {
       this.store.setFocusedItemId(list[0].id);
@@ -350,7 +352,7 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     const currentItem = list[focusedIdx];
 
-    if (currentItem.editing) {
+    if (this.store.editingItemId() === currentItem.id) {
       return;
     }
 

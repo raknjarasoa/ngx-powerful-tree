@@ -1,7 +1,7 @@
 <div class="ngx-tree-container" tabindex="-1">
   <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport">
     <div
-      *cdkVirtualFor="let item of store.flattenedVisibleItems(); trackBy: trackById; let idx = index"
+      *cdkVirtualFor="let item of store.flattenedStructure().list; trackBy: trackById; let idx = index"
       ngxTreeRow
       [item]="item"
       [readOnly]="readOnly()"
@@ -76,7 +76,7 @@
     </span>
 
     <div class="ngx-tree-item-text">
-      @if (item.editing) {
+      @if (store.editingItemId() === item.id) {
       <input
         #editInput
         [value]="item.name"

@@ -37,10 +37,12 @@ export interface DragState {
 }
 
 /**
- * Proxy item representing a node in the tree at runtime.
- * We use this proxy to avoid mutating the original user items.
+ * Structural item in the flattened visible list. Contains everything needed
+ * for layout and rendering but NOT transient row state (selected, focused,
+ * editing) — those are O(1) store lookups performed per-directive instance
+ * so that a focus/selection change doesn't rebuild the full array.
  */
-export interface NgxTreeProxyItem<T = any> {
+export interface NgxTreeStructuralItem<T = any> {
   id: string;
   name: string;
   isFolder: boolean;
@@ -48,14 +50,21 @@ export interface NgxTreeProxyItem<T = any> {
   children: string[];
   depth: number;
   expanded: boolean;
+  matchesSearch: boolean;
+  locked: boolean;
+  data?: T;
+  icon?: string;
+  hasVisibleChildren: boolean;
+}
+
+/**
+ * Full proxy item with transient row state merged in. Used by the keyboard
+ * handler and kept as backward-compatible accessor via `flattenedVisibleItems`.
+ */
+export interface NgxTreeProxyItem<T = any> extends NgxTreeStructuralItem<T> {
   selected: boolean;
   focused: boolean;
   editing: boolean;
-  matchesSearch: boolean;
-  locked: boolean; // Inherited locked state at runtime
-  data?: T;
-  icon?: string; // Runtime resolved custom icon
-  hasVisibleChildren: boolean; // Dynamic child count check for chevron rendering
 }
 
 export type SelectableTypes = 'files' | 'folders' | 'all';
