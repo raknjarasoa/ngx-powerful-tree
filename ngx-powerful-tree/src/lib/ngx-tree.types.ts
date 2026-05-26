@@ -1,11 +1,31 @@
+/**
+ * Public, nested tree shape used by the `nodes` input. Children are embedded
+ * directly. Pass this to <ngx-powerful-tree [nodes]="..."> and to reload().
+ */
+export interface NgxTreeNode<T = any> {
+  id: string;
+  name: string;
+  isFolder: boolean;
+  children?: NgxTreeNode<T>[];
+  data?: T;
+  locked?: boolean;
+  icon?: string;
+}
+
+/**
+ * Internal flat-map shape stored by NgxTreeStore. The store keeps a
+ * `Record<id, NgxTreeItem>` plus a `rootIds` array so move/rename/delete
+ * are O(1) on item lookup. Most consumers don't need this type — use
+ * `NgxTreeNode` for inputs and outputs.
+ */
 export interface NgxTreeItem<T = any> {
   id: string;
   name: string;
   isFolder: boolean;
-  children?: string[]; // IDs of children (only for folders)
-  data?: T; // Custom optional payload
-  locked?: boolean; // Lock state for folder and all descendants
-  icon?: string; // Optional class string for custom icons (e.g. FontAwesome)
+  children?: string[];
+  data?: T;
+  locked?: boolean;
+  icon?: string;
 }
 
 export type DragPosition = 'before' | 'after' | 'inside' | null;

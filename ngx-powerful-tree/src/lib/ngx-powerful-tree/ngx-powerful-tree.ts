@@ -22,7 +22,14 @@ import {
 } from '@angular/core';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
 import { NgxTreeStore } from '../ngx-tree.store';
-import { DragPosition, NgxTreeItem, NgxTreeProxyItem, SelectableTypes } from '../ngx-tree.types';
+import {
+  DragPosition,
+  NgxTreeItem,
+  NgxTreeNode,
+  NgxTreeProxyItem,
+  SelectableTypes,
+} from '../ngx-tree.types';
+import { flattenNodes } from '../ngx-tree.utils';
 
 // SSR-safe id generator. `crypto.randomUUID` exists in browsers and modern
 // Node, but not in older runtimes — fall back to a stronger random than the
@@ -62,10 +69,9 @@ export class NgxPowerfulTree implements AfterViewInit {
   private injector = inject(Injector);
 
   // --- Modern Signal Inputs ---
-  // `items` and `rootIds` seed the tree on first emission. After that, the
-  // store owns truth. Use `reload()` to swap the dataset explicitly.
-  items = input.required<Record<string, NgxTreeItem>>();
-  rootIds = input.required<string[]>();
+  // `nodes` seeds the tree on first emission. After that the store owns
+  // truth — use `reload(nodes)` to swap the dataset explicitly.
+  nodes = input.required<NgxTreeNode[]>();
   searchQuery = input<string>('');
   multiSelect = input<boolean>(false);
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
@@ -88,7 +94,7 @@ export class NgxPowerfulTree implements AfterViewInit {
     position: DragPosition;
   }>();
   itemRenamed = output<{ id: string; name: string }>();
-  itemAdded = output<{ parentId: string | null; item: NgxTreeItem }>();
+  itemAdded = output<{ parentId: string | null; node: NgxTreeNode }>();
   itemDeleted = output<string>();
   selectionChanged = output<string[]>();
   focusedChanged = output<string | null>();
@@ -109,16 +115,16 @@ export class NgxPowerfulTree implements AfterViewInit {
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // 1. One-shot seed of the store from the inputs. Subsequent emissions are
-    // ignored on purpose — the store owns truth after init. Use `reload()` to
-    // swap the dataset explicitly.
+    // 1. One-shot seed of the store from the `nodes` input. Subsequent
+    // emissions are ignored on purpose — the store owns truth after init.
+    // Use `reload(nodes)` to swap the dataset explicitly.
     effect(() => {
-      const itemsVal = this.items();
-      const rootsVal = this.rootIds();
+      const nodesVal = this.nodes();
       if (this.initialized) return;
       this.initialized = true;
       untracked(() => {
-        this.store.setItems(itemsVal, rootsVal);
+        const { items, rootIds } = flattenNodes(nodesVal);
+        this.store.setItems(items, rootIds);
       });
     });
 
@@ -280,8 +286,12 @@ export class NgxPowerfulTree implements AfterViewInit {
     this.createFolder(null, name);
   }
 
-  // Public method to reload the dataset. Clears expand/select/focus/search/drag state.
-  public reload(items: Record<string, NgxTreeItem>, rootIds: string[]) {
+  /**
+   * Reload the dataset. Clears expand/select/focus/search/drag state.
+   * Accepts the same nested {@link NgxTreeNode}[] shape as the `nodes` input.
+   */
+  public reload(nodes: NgxTreeNode[]) {
+    const { items, rootIds } = flattenNodes(nodes);
     this.store.reload(items, rootIds);
   }
 
@@ -294,7 +304,13 @@ export class NgxPowerfulTree implements AfterViewInit {
       children: [],
     };
     if (!this.store.addItem(parentId, newItem)) return;
-    this.itemAdded.emit({ parentId, item: newItem });
+    const node: NgxTreeNode = {
+      id: newId,
+      name,
+      isFolder: true,
+      children: [],
+    };
+    this.itemAdded.emit({ parentId, node });
     // Defer editing-state activation until the row is rendered by virtual scroll.
     afterNextRender(
       () => {

@@ -191,8 +191,7 @@
         <div class="tree-wrapper">
           <ngx-powerful-tree
             #primaryTree
-            [items]="treeItems()"
-            [rootIds]="treeRootIds()"
+            [nodes]="treeNodes()"
             [searchQuery]="searchQuery()"
             [multiSelect]="multiSelect()"
             [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
@@ -297,8 +296,7 @@
       <!-- Nested tree instance in overlay with same dataset but independent state -->
       <div class="overlay-tree-wrapper">
         <ngx-powerful-tree
-          [items]="treeItems()"
-          [rootIds]="treeRootIds()"
+          [nodes]="treeNodes()"
           [searchQuery]="searchQuery()"
           [multiSelect]="false"
           [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
@@ -345,8 +343,7 @@
 
       <div class="overlay-tree-wrapper">
         <ngx-powerful-tree
-          [items]="primaryTree.store.items()"
-          [rootIds]="primaryTree.store.rootIds()"
+          [nodes]="pickerNodes()"
           [foldersOnly]="true"
           [readOnly]="true"
           [searchQuery]="overlaySearchQuery()"

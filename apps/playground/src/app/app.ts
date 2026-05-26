@@ -10,7 +10,7 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { NgxPowerfulTree, NgxTreeItem, DragPosition } from 'ngx-powerful-tree';
+import { NgxPowerfulTree, NgxTreeNode, DragPosition, expandItems } from 'ngx-powerful-tree';
 
 @Component({
   selector: 'app-root',
@@ -25,8 +25,8 @@ export class AppComponent implements OnInit, OnDestroy {
   primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
 
   // Tree Inputs Signals
-  treeItems = signal<Record<string, NgxTreeItem>>({});
-  treeRootIds = signal<string[]>([]);
+  treeNodes = signal<NgxTreeNode[]>([]);
+  pickerNodes = signal<NgxTreeNode[]>([]);
   searchQuery = signal<string>('');
   multiSelect = signal<boolean>(false);
   useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
@@ -53,7 +53,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
   movingItemName = computed(() => {
     const itemId = this.movingItemId();
-    return itemId ? this.treeItems()[itemId]?.name || '' : '';
+    if (!itemId) return '';
+    const tree = this.primaryTree();
+    return tree?.store.items()[itemId]?.name ?? '';
   });
 
   ngOnInit() {
@@ -93,71 +95,69 @@ export class AppComponent implements OnInit, OnDestroy {
     this.animFrameId = requestAnimationFrame(loop);
   }
 
-  // Generate 100k+ elements recursively on the fly and track loading time
+  // Generate 100k+ elements recursively on the fly and track loading time.
+  // Builds the nested NgxTreeNode shape directly — no flat-map intermediate.
   loadMockTree(count: number) {
     this.addLog(`Initializing generation of ${count} tree items...`);
     const start = performance.now();
 
-    const items: Record<string, NgxTreeItem> = {};
-    const rootIds: string[] = [];
+    const lookup = new Map<string, NgxTreeNode>();
+    const roots: NgxTreeNode[] = [];
 
-    // Create 15 top-level root folders
-    const rootFolders = 14;
-    for (let i = 1; i <= rootFolders; i++) {
-      const id = `root-folder-${i}`;
-      items[id] = {
-        id,
+    const makeNode = (node: NgxTreeNode): NgxTreeNode => {
+      lookup.set(node.id, node);
+      return node;
+    };
+
+    for (let i = 1; i <= 14; i++) {
+      const node = makeNode({
+        id: `root-folder-${i}`,
         name: `Archive Volume ${i}`,
         isFolder: true,
         children: [],
-      };
-      rootIds.push(id);
+      });
+      roots.push(node);
     }
 
-    // Create 15th root folder: "Other Users" (Locked Branch)
-    const otherUsersId = 'root-folder-15';
-    items[otherUsersId] = {
-      id: otherUsersId,
+    const otherUsers = makeNode({
+      id: 'root-folder-15',
       name: 'Other Users (Locked Branch)',
       isFolder: true,
+      locked: true,
       children: [],
-      locked: true, // Native locking!
-    };
-    rootIds.push(otherUsersId);
+    });
+    roots.push(otherUsers);
 
-    // Create mock user sub-folders & files inheriting the locked state
     const userNames = ['John Doe', 'Jane Smith', 'Alex Carter'];
     userNames.forEach((userName, userIdx) => {
-      const userId = `other-user-${userIdx}`;
-      items[userId] = {
-        id: userId,
+      const user = makeNode({
+        id: `other-user-${userIdx}`,
         name: userName,
         isFolder: true,
-        children: [],
         locked: true,
-      };
-      items[otherUsersId].children?.push(userId);
+        children: [],
+      });
+      otherUsers.children!.push(user);
 
-      // Demonstrate individual item-level custom icon override using FontAwesome classes
       const files = [
         { name: 'quarterly_review.xlsx', icon: 'fa-solid fa-file-excel' },
         { name: 'personal_notes.txt', icon: 'fa-solid fa-file-lines' },
         { name: 'profile_pic.png', icon: 'fa-solid fa-file-image' },
       ];
-      files.forEach((fileObj, fileIdx) => {
-        const fileId = `other-user-file-${userIdx}-${fileIdx}`;
-        items[fileId] = {
-          id: fileId,
-          name: fileObj.name,
-          isFolder: false,
-          locked: true,
-          icon: fileObj.icon, // Node-level custom icon override!
-        };
-        items[userId].children?.push(fileId);
+      files.forEach((file, fileIdx) => {
+        user.children!.push(
+          makeNode({
+            id: `other-user-file-${userIdx}-${fileIdx}`,
+            name: file.name,
+            isFolder: false,
+            locked: true,
+            icon: file.icon,
+          })
+        );
       });
     });
 
-    const folderPool = [...rootIds].filter((id) => id !== otherUsersId); // Prevent random mocks inside Other Users
+    const folderPool: NgxTreeNode[] = roots.filter((n) => n.id !== otherUsers.id);
     const extensions = [
       'pdf',
       'txt',
@@ -175,75 +175,58 @@ export class AppComponent implements OnInit, OnDestroy {
     ];
 
     for (let i = 1; i <= count; i++) {
-      const isFolder = Math.random() < 0.15; // 15% folders
+      const isFolder = Math.random() < 0.15;
       const id = `item-${i}`;
-      const parentId = folderPool[Math.floor(Math.random() * folderPool.length)];
+      const parent = folderPool[Math.floor(Math.random() * folderPool.length)];
+      parent.children = parent.children ?? [];
 
       if (isFolder) {
-        items[id] = {
-          id,
-          name: `Collection_${i}`,
-          isFolder: true,
-          children: [],
-        };
-        items[parentId].children?.push(id);
-        folderPool.push(id);
+        const folder = makeNode({ id, name: `Collection_${i}`, isFolder: true, children: [] });
+        parent.children.push(folder);
+        folderPool.push(folder);
       } else {
         const ext = extensions[Math.floor(Math.random() * extensions.length)];
-        items[id] = {
-          id,
-          name: `document_report_${i}.${ext}`,
-          isFolder: false,
-        };
-        items[parentId].children?.push(id);
-      }
-    }
-    // Guarantee that item-80 exists and is named 'document_report_80.html'
-    const item80Id = 'item-80';
-    if (items[item80Id]) {
-      items[item80Id] = {
-        ...items[item80Id],
-        name: 'document_report_80.html',
-        isFolder: false,
-      };
-    } else {
-      items[item80Id] = {
-        id: item80Id,
-        name: 'document_report_80.html',
-        isFolder: false,
-      };
-      if (rootIds.length > 0) {
-        const fallbackParent = rootIds[0];
-        if (items[fallbackParent]) {
-          items[fallbackParent].children = items[fallbackParent].children || [];
-          items[fallbackParent].children.push(item80Id);
-        }
+        parent.children.push(
+          makeNode({ id, name: `document_report_${i}.${ext}`, isFolder: false })
+        );
       }
     }
 
-    this.treeItems.set(items);
-    this.treeRootIds.set(rootIds);
+    // Guarantee item-80 exists with the canonical name so the e2e test can find it.
+    const item80Id = 'item-80';
+    const existing = lookup.get(item80Id);
+    if (existing) {
+      existing.name = 'document_report_80.html';
+      existing.isFolder = false;
+    } else if (roots.length > 0) {
+      const fallback = roots[0];
+      fallback.children = fallback.children ?? [];
+      fallback.children.push(
+        makeNode({ id: item80Id, name: 'document_report_80.html', isFolder: false })
+      );
+    }
+
+    this.treeNodes.set(roots);
 
     const end = performance.now();
     const duration = Math.round(end - start);
     this.benchmarkDuration.set(duration);
     this.addLog(`Loaded ${count} nodes in ${duration}ms! Virtualization renders in real-time.`);
 
-    // Programmatically select item-80 and expand all its ancestor folders so it is visible in the view
+    // Pre-select item-80 and expand its ancestors so it lands in view.
     setTimeout(() => {
       const tree = this.primaryTree();
-      if (tree) {
-        tree.store.selectItem(item80Id, false);
-        const parentMap = tree.store.parentMap();
-        let parentId = parentMap[item80Id];
-        while (parentId) {
-          tree.store.setExpanded(parentId, true);
-          parentId = parentMap[parentId];
-        }
-        this.addLog(
-          `[Selection Change] Pre-selected 'document_report_80.html' (item-80) and expanded all ancestor folders.`
-        );
+      if (!tree) return;
+      tree.store.selectItem(item80Id, false);
+      const parentMap = tree.store.parentMap();
+      let parentId = parentMap[item80Id];
+      while (parentId) {
+        tree.store.setExpanded(parentId, true);
+        parentId = parentMap[parentId];
       }
+      this.addLog(
+        `[Selection Change] Pre-selected 'document_report_80.html' (item-80) and expanded ancestors.`
+      );
     }, 100);
   }
 
@@ -257,9 +240,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.addLog(`[Rename] Node "${event.id}" renamed to "${event.name}"`);
   }
 
-  onItemAdded(event: { parentId: string | null; item: NgxTreeItem }) {
+  onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {
     this.addLog(
-      `[Add] New Folder "${event.item.name}" (${event.item.id}) added into parent: ${event.parentId || 'Root'}`
+      `[Add] New Folder "${event.node.name}" (${event.node.id}) added into parent: ${event.parentId || 'Root'}`
     );
   }
 
@@ -304,6 +287,10 @@ export class AppComponent implements OnInit, OnDestroy {
   // --- Relocation Methods ---
 
   onMoveRequested(id: string) {
+    const tree = this.primaryTree();
+    if (!tree) return;
+    // Snapshot the primary tree's structure as nested nodes for the picker.
+    this.pickerNodes.set(expandItems(tree.store.items(), tree.store.rootIds()));
     this.movingItemId.set(id);
     this.targetFolderId.set(null);
     this.overlaySearchQuery.set('');

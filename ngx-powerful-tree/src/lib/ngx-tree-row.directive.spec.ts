@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NgxPowerfulTree } from './ngx-powerful-tree/ngx-powerful-tree';
-import { NgxTreeItem } from './ngx-tree.types';
+import { NgxTreeNode } from './ngx-tree.types';
 
 // Tests exercise the drag math of NgxTreeRowDirective through real DOM events
 // against a mounted NgxPowerfulTree. Drag rect calculations are short-circuited
@@ -56,17 +56,16 @@ describe('NgxTreeRowDirective drag math', () => {
 
     fixture = TestBed.createComponent(NgxPowerfulTree);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('items', {});
-    fixture.componentRef.setInput('rootIds', []);
+    fixture.componentRef.setInput('nodes', []);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const items: Record<string, NgxTreeItem> = {
-      folder: { id: 'folder', name: 'Folder', isFolder: true, children: [] },
-      a: { id: 'a', name: 'A', isFolder: false },
-      b: { id: 'b', name: 'B', isFolder: false },
-    };
-    component.reload(items, ['folder', 'a', 'b']);
+    const nodes: NgxTreeNode[] = [
+      { id: 'folder', name: 'Folder', isFolder: true, children: [] },
+      { id: 'a', name: 'A', isFolder: false },
+      { id: 'b', name: 'B', isFolder: false },
+    ];
+    component.reload(nodes);
     fixture.detectChanges();
     await fixture.whenStable();
 

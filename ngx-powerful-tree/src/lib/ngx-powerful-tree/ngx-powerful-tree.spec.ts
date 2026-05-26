@@ -14,8 +14,7 @@ describe('NgxPowerfulTree', () => {
 
     fixture = TestBed.createComponent(NgxPowerfulTree);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('items', {});
-    fixture.componentRef.setInput('rootIds', []);
+    fixture.componentRef.setInput('nodes', []);
     fixture.detectChanges();
     await fixture.whenStable();
   });
@@ -37,16 +36,12 @@ describe('NgxPowerfulTree', () => {
 
   it('should not allow triggering edit rename when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    component.reload(
-      { 'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] } },
-      ['folder-1']
-    );
+    component.reload([{ id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('folder-1');
-    const event = new KeyboardEvent('keydown', { key: 'F2' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'F2' }));
 
     fixture.detectChanges();
     expect(component.store.editingItemId()).toBeNull();
@@ -54,35 +49,27 @@ describe('NgxPowerfulTree', () => {
 
   it('should not allow deleting items when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    component.reload(
-      { 'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] } },
-      ['folder-1']
-    );
+    component.reload([{ id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('folder-1');
-    const event = new KeyboardEvent('keydown', { key: 'Delete' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
     expect(component.store.items()['folder-1']).toBeDefined();
   });
 
   it('should propagate locked property from parent folder to children recursively', async () => {
-    component.reload(
+    component.reload([
       {
-        'locked-folder': {
-          id: 'locked-folder',
-          name: 'Locked Folder',
-          isFolder: true,
-          children: ['child-file'],
-          locked: true,
-        },
-        'child-file': { id: 'child-file', name: 'Child File', isFolder: false },
+        id: 'locked-folder',
+        name: 'Locked Folder',
+        isFolder: true,
+        locked: true,
+        children: [{ id: 'child-file', name: 'Child File', isFolder: false }],
       },
-      ['locked-folder']
-    );
+    ]);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -98,52 +85,45 @@ describe('NgxPowerfulTree', () => {
   });
 
   it('should block renaming locked items via F2 keydown', async () => {
-    component.reload(
-      { 'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true } },
-      ['locked-file']
-    );
+    component.reload([{ id: 'locked-file', name: 'Locked File', isFolder: false, locked: true }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('locked-file');
-    const event = new KeyboardEvent('keydown', { key: 'F2' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'F2' }));
 
     fixture.detectChanges();
     expect(component.store.editingItemId()).toBeNull();
   });
 
   it('should block deleting locked items via Delete keydown', async () => {
-    component.reload(
-      { 'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true } },
-      ['locked-file']
-    );
+    component.reload([{ id: 'locked-file', name: 'Locked File', isFolder: false, locked: true }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('locked-file');
-    const event = new KeyboardEvent('keydown', { key: 'Delete' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
     expect(component.store.items()['locked-file']).toBeDefined();
   });
 
   it('should expose a reload() method that swaps the dataset and clears state', async () => {
-    component.reload(
+    component.reload([
       {
-        a: { id: 'a', name: 'A', isFolder: true, children: ['b'] },
-        b: { id: 'b', name: 'B', isFolder: false },
+        id: 'a',
+        name: 'A',
+        isFolder: true,
+        children: [{ id: 'b', name: 'B', isFolder: false }],
       },
-      ['a']
-    );
+    ]);
     component.store.toggleExpand('a');
     component.store.selectItem('b');
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.store.selectedItems().has('b')).toBe(true);
 
-    component.reload({ c: { id: 'c', name: 'C', isFolder: false } }, ['c']);
+    component.reload([{ id: 'c', name: 'C', isFolder: false }]);
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.store.items()['a']).toBeUndefined();
@@ -153,51 +133,46 @@ describe('NgxPowerfulTree', () => {
   });
 
   it('should expose contentChild fileTemplate via signal getter', () => {
-    // No projected #fileTemplate: signal resolves to undefined and the
-    // default template path is used in the view.
     expect(component.fileTemplate()).toBeUndefined();
   });
 
   it('should run dragover events outside Angular Zone to optimize FPS and prevent change detection cycles', async () => {
-    component.reload(
+    component.reload([
       {
-        'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: ['file-1'] },
-        'file-1': { id: 'file-1', name: 'File 1', isFolder: false },
+        id: 'folder-1',
+        name: 'Folder 1',
+        isFolder: true,
+        children: [{ id: 'file-1', name: 'File 1', isFolder: false }],
       },
-      ['folder-1']
-    );
+    ]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setExpanded('folder-1', true);
     fixture.detectChanges();
 
-    // Set active dragged item in the store
     component.store.setDragState('file-1', null, null);
     fixture.detectChanges();
 
     const rowElements = fixture.nativeElement.querySelectorAll('.ngx-tree-row-wrapper');
     const folderRowEl = rowElements[0];
 
-    // Spy on NgZone.run to see when we enter the Angular Zone
     const ngZone = TestBed.inject(NgZone);
     const runSpy = vi.spyOn(ngZone, 'run');
 
-    // Helper to create mocked dragover event since DragEvent is not natively defined in the JSDOM test environment
     const createDragOverEvent = (clientY: number) => {
-      const event = new Event('dragover', { bubbles: true, cancelable: true }) as any;
+      const event = new Event('dragover', { bubbles: true, cancelable: true }) as Event & {
+        clientY: number;
+      };
       event.clientY = clientY;
       return event;
     };
 
-    // Trigger multiple dragover events that evaluate to the same target row & position
     folderRowEl.dispatchEvent(createDragOverEvent(10));
     folderRowEl.dispatchEvent(createDragOverEvent(11));
     folderRowEl.dispatchEvent(createDragOverEvent(12));
 
-    // Standard template bindings would trigger Angular change detection 3 times.
-    // Our optimized outside-zone listener should enter the zone at most once to transition state,
-    // and subsequent occurrences must skip NgZone.run() entirely!
+    // Bursts collapse into a single rAF tick; nothing has fired yet here.
     expect(runSpy.mock.calls.length).toBeLessThan(3);
   });
 });
