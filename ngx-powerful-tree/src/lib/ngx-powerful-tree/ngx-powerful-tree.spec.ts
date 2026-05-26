@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NgZone } from '@angular/core';
+import { vi } from 'vitest';
 import { NgxPowerfulTree } from './ngx-powerful-tree';
 
 describe('NgxPowerfulTree', () => {
@@ -123,5 +125,53 @@ describe('NgxPowerfulTree', () => {
 
     fixture.detectChanges();
     expect(component.store.items()['locked-file']).toBeDefined(); // Blocked!
+  });
+
+  it('should accept custom fileTemplate input and resolve it via computed property', () => {
+    const dummyTemplate = {} as any; // mock TemplateRef
+    fixture.componentRef.setInput('fileTemplate', dummyTemplate);
+    fixture.detectChanges();
+    expect(component.fileTemplate()).toBe(dummyTemplate);
+  });
+
+  it('should run dragover events outside Angular Zone to optimize FPS and prevent change detection cycles', async () => {
+    fixture.componentRef.setInput('items', {
+      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: ['file-1'] },
+      'file-1': { id: 'file-1', name: 'File 1', isFolder: false },
+    });
+    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.store.setExpanded('folder-1', true);
+    fixture.detectChanges();
+
+    // Set active dragged item in the store
+    component.store.setDragState('file-1', null, null);
+    fixture.detectChanges();
+
+    const rowElements = fixture.nativeElement.querySelectorAll('.ngx-tree-row-wrapper');
+    const folderRowEl = rowElements[0];
+
+    // Spy on NgZone.run to see when we enter the Angular Zone
+    const ngZone = TestBed.inject(NgZone);
+    const runSpy = vi.spyOn(ngZone, 'run');
+
+    // Helper to create mocked dragover event since DragEvent is not natively defined in the JSDOM test environment
+    const createDragOverEvent = (clientY: number) => {
+      const event = new Event('dragover', { bubbles: true, cancelable: true }) as any;
+      event.clientY = clientY;
+      return event;
+    };
+
+    // Trigger multiple dragover events that evaluate to the same target row & position
+    folderRowEl.dispatchEvent(createDragOverEvent(10));
+    folderRowEl.dispatchEvent(createDragOverEvent(11));
+    folderRowEl.dispatchEvent(createDragOverEvent(12));
+
+    // Standard template bindings would trigger Angular change detection 3 times.
+    // Our optimized outside-zone listener should enter the zone at most once to transition state,
+    // and subsequent occurrences must skip NgZone.run() entirely!
+    expect(runSpy.mock.calls.length).toBeLessThan(3);
   });
 });

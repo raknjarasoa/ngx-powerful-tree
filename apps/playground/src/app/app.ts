@@ -33,6 +33,7 @@ export class AppComponent implements OnInit, OnDestroy {
   allowRename = signal<boolean>(true); // Dynamic user access control for renaming
   allowDelete = signal<boolean>(true); // Dynamic user access control for deleting
   truncateNames = signal<boolean>(true); // Dynamic control for name truncation
+  useCustomFileTemplate = signal<boolean>(false); // Enable premium file template demo
 
   // Stats & States Signals
   totalItemCount = signal<number>(100000);

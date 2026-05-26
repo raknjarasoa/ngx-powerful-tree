@@ -13,7 +13,7 @@
     >
       <!-- Content Template Outlet -->
       <ng-container
-        *ngTemplateOutlet="itemTemplate() || defaultTemplate; context: { $implicit: item, index: idx }"
+        *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item, index: idx }"
       >
       </ng-container>
     </div>

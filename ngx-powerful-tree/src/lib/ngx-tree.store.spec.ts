@@ -154,7 +154,7 @@ describe('NgxTreeStore', () => {
     expect(store.items()['root-a'].children[0]).toBe('new-child-folder');
   });
 
-  it('should drop inside an expanded folder at index 0 and a collapsed folder at the end', () => {
+  it('should drop inside an expanded folder and a collapsed folder at the first index', () => {
     // 1. Expanded target folder
     store.setExpanded('child-a2', true); // Expand child-a2
     // child-a2 children initially has: ['grandchild-a2a']
@@ -164,18 +164,31 @@ describe('NgxTreeStore', () => {
 
     // 2. Collapsed target folder
     store.setExpanded('root-a', false); // Collapse root-a
-    // root-a children: ['child-a1', 'child-a2']
+    // root-a children initially: ['child-a1', 'child-a2']
+    // Let's reset store to make a clean assertion
+    store.setItems(mockItems, mockRootIds);
     store.moveItem('root-b', 'root-a', 'inside');
     const rootAChildren = store.items()['root-a'].children;
-    expect(rootAChildren[rootAChildren.length - 1]).toBe('root-b'); // Placed at the end
+    expect(rootAChildren[0]).toBe('root-b'); // Placed at the first index (index 0)
   });
 
-  it('should deselect the dragged item when dropped', () => {
+  it('should preserve the selection state of the dragged file item when dropped', () => {
     store.selectItem('root-b');
     expect(store.selectedItems().has('root-b')).toBe(true);
 
     // Drop root-b inside child-a2
     store.moveItem('root-b', 'child-a2', 'inside');
-    expect(store.selectedItems().has('root-b')).toBe(false); // Should be deselected
+    expect(store.selectedItems().has('root-b')).toBe(true); // Should remain selected
+  });
+
+  it('should not allow selecting folder items', () => {
+    store.selectItem('child-a2');
+    expect(store.selectedItems().has('child-a2')).toBe(false); // Folder should not be selected
+  });
+
+  it('should allow selecting folder items if foldersOnly is true', () => {
+    store.setFoldersOnly(true);
+    store.selectItem('child-a2');
+    expect(store.selectedItems().has('child-a2')).toBe(true); // Folder should be selected
   });
 });
