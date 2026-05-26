@@ -1,3 +1,9 @@
+# [1.1.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v1.0.0...v1.1.0) (2026-05-26)
+
+### Features
+
+- **tree:** refine drag-drop targets, isolate chevron expand clicks, restrict folder selection, and add typesafe template contexts ([9ced4c2](https://github.com/raknjarasoa/ngx-powerful-tree/commit/9ced4c208ffbde9740e558010b701811532c3f68))
+
 # 1.0.0 (2026-05-26)
 
 ### Bug Fixes
