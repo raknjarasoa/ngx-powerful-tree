@@ -236,19 +236,31 @@ body {
 }
 
 .toggle-btn {
-  background-color: var(--pg-surface-elevated);
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--pg-surface-elevated);
   border: 1px solid var(--pg-border);
   color: var(--pg-color);
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 0.78rem;
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.toggle-btn:hover {
+  background: var(--pg-border);
 }
 
 .toggle-btn.enabled {
-  background-color: var(--pg-accent-blue);
+  background: var(--pg-accent-blue);
   border-color: var(--pg-accent-blue);
   color: #ffffff;
+}
+
+.toggle-btn.enabled:hover {
+  background: var(--pg-accent-blue-hover);
+  border-color: var(--pg-accent-blue-hover);
 }
 
 .action-btn-overlay {

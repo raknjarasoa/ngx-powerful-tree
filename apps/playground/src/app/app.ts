@@ -28,7 +28,7 @@ export class AppComponent implements OnInit, OnDestroy {
   treeItems = signal<Record<string, NgxTreeItem>>({});
   treeRootIds = signal<string[]>([]);
   searchQuery = signal<string>('');
-  multiSelect = signal<boolean>(true);
+  multiSelect = signal<boolean>(false);
   useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
   allowRename = signal<boolean>(true); // Dynamic user access control for renaming
   allowDelete = signal<boolean>(true); // Dynamic user access control for deleting
@@ -197,6 +197,28 @@ export class AppComponent implements OnInit, OnDestroy {
         items[parentId].children?.push(id);
       }
     }
+    // Guarantee that item-80 exists and is named 'document_report_80.html'
+    const item80Id = 'item-80';
+    if (items[item80Id]) {
+      items[item80Id] = {
+        ...items[item80Id],
+        name: 'document_report_80.html',
+        isFolder: false,
+      };
+    } else {
+      items[item80Id] = {
+        id: item80Id,
+        name: 'document_report_80.html',
+        isFolder: false,
+      };
+      if (rootIds.length > 0) {
+        const fallbackParent = rootIds[0];
+        if (items[fallbackParent]) {
+          items[fallbackParent].children = items[fallbackParent].children || [];
+          items[fallbackParent].children.push(item80Id);
+        }
+      }
+    }
 
     this.treeItems.set(items);
     this.treeRootIds.set(rootIds);
@@ -205,6 +227,23 @@ export class AppComponent implements OnInit, OnDestroy {
     const duration = Math.round(end - start);
     this.benchmarkDuration.set(duration);
     this.addLog(`Loaded ${count} nodes in ${duration}ms! Virtualization renders in real-time.`);
+
+    // Programmatically select item-80 and expand all its ancestor folders so it is visible in the view
+    setTimeout(() => {
+      const tree = this.primaryTree();
+      if (tree) {
+        tree.store.selectItem(item80Id, false);
+        const parentMap = tree.store.parentMap();
+        let parentId = parentMap[item80Id];
+        while (parentId) {
+          tree.store.setExpanded(parentId, true);
+          parentId = parentMap[parentId];
+        }
+        this.addLog(
+          `[Selection Change] Pre-selected 'document_report_80.html' (item-80) and expanded all ancestor folders.`
+        );
+      }
+    }, 100);
   }
 
   // --- Output Listeners ---
