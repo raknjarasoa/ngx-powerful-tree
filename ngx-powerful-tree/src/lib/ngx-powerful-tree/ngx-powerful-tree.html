@@ -101,8 +101,7 @@
       } }
     </div>
 
-    @if (!item.locked && !readOnly()) {
-    @let actions = resolvedActions();
+    @if (!item.locked && !readOnly()) { @let actions = resolvedActions();
     <div class="ngx-tree-row-actions">
       @if (item.isFolder && isActionEnabled(actions.add, item)) {
       <button
