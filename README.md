@@ -1,102 +1,197 @@
-# TempWorkspace
+# ngx-powerful-tree
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A virtualized Angular tree component with native HTML5 drag-and-drop, fluid
+search, locked subtrees, and folder/file picker modes. Built on
+`@ngrx/signals` and `@angular/cdk/scrolling`. Designed to stay smooth at
+100k+ rows.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
-
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-
-## Run tasks
-
-To run the dev server for your app, use:
+## Installation
 
 ```sh
-npx nx serve playground
+npm i ngx-powerful-tree @angular/cdk @ngrx/signals
 ```
 
-To create a production bundle:
+## Quick start
+
+```ts
+import { Component, signal, viewChild } from '@angular/core';
+import { NgxPowerfulTree, NgxTreeNode } from 'ngx-powerful-tree';
+
+@Component({
+  imports: [NgxPowerfulTree],
+  template: `
+    <ngx-powerful-tree
+      #tree
+      [nodes]="nodes()"
+      [searchQuery]="search()"
+      (itemMoved)="onMoved($event)"
+      (itemRenamed)="onRenamed($event)"
+      (itemDeleted)="onDeleted($event)"
+    />
+  `,
+})
+export class MyTree {
+  tree = viewChild.required<NgxPowerfulTree>('tree');
+
+  nodes = signal<NgxTreeNode[]>([
+    {
+      id: 'src',
+      name: 'src',
+      isFolder: true,
+      children: [{ id: 'app.ts', name: 'app.ts', isFolder: false }],
+    },
+  ]);
+  search = signal<string>('');
+
+  async refresh() {
+    const data = await this.api.fetchTree();
+    this.tree().reload(data);
+  }
+}
+```
+
+## State ownership: the contract
+
+**The tree owns its state after the first input emission.** `nodes` is read
+once on mount and then ignored — internal mutations (move/rename/add/delete
+via the UI or store) survive parent re-emissions without being silently
+overwritten.
+
+To swap the dataset entirely (e.g. after loading from a server), call the
+public `reload()` method. It accepts the same nested `NgxTreeNode[]` shape
+as the `nodes` input and clears expand/select/focus/search/drag state so
+the new dataset starts from a clean slate.
+
+To keep an external mirror in sync, subscribe to the fine-grained outputs
+(`itemMoved`, `itemRenamed`, `itemAdded`, `itemDeleted`,
+`selectionChanged`, `focusedChanged`). The tree never emits a full-tree
+snapshot — at 100k+ items that would dwarf the cost of the mutation itself.
+
+## Inputs
+
+| Input              | Type                            | Default   | Description                                                                            |
+| ------------------ | ------------------------------- | --------- | -------------------------------------------------------------------------------------- |
+| `nodes` (required) | `NgxTreeNode[]`                 | —         | Seed dataset. Read once on first emission; call `reload(nodes)` to swap it afterwards. |
+| `searchQuery`      | `string`                        | `''`      | Substring filter. Debounced by `searchDebounceMs`.                                     |
+| `searchDebounceMs` | `number`                        | `120`     | Debounce window for search input. `0` to apply immediately.                            |
+| `multiSelect`      | `boolean`                       | `false`   | Allow selecting multiple items with click + meta or Space.                             |
+| `itemSize`         | `number`                        | `40`      | Row height in pixels for `CdkVirtualScrollViewport`.                                   |
+| `selectableTypes`  | `'files' \| 'folders' \| 'all'` | `'files'` | Which item kinds can be selected. Use `'folders'` for a folder picker.                 |
+| `readOnly`         | `boolean`                       | `false`   | Disable drag/rename/delete/add UI.                                                     |
+| `actions`          | `NgxTreeActions`                | `{}`      | Per-action availability. See below.                                                    |
+
+### `actions` input
+
+`NgxTreeActions` has four optional keys — `add`, `rename`, `delete`, `move`.
+Each value can be a `boolean` or a per-row predicate
+`(item: NgxTreeProxyItem) => boolean`. **Omitted keys default to `true`.**
+
+```html
+<!-- Disable delete globally; keep add/rename/move -->
+<ngx-powerful-tree [nodes]="nodes()" [actions]="{ delete: false }" />
+
+<!-- Disable delete only for folders that still have children -->
+<ngx-powerful-tree [nodes]="nodes()" [actions]="{ delete: deleteWhenEmpty }" />
+```
+
+```ts
+deleteWhenEmpty = (item: NgxTreeProxyItem) => !item.isFolder || item.children.length === 0;
+```
+
+### Truncate vs wrap
+
+Names are truncated with an ellipsis by default. To let names wrap onto
+multiple lines, add the `ngx-tree-wrap` class on the host:
+
+```html
+<ngx-powerful-tree [nodes]="nodes()" class="ngx-tree-wrap" />
+```
+
+## Headless Theming (CSS Variables)
+
+The tree provides a clean, wireframed design that delegates all colors, spacings, and borders to CSS variables. You can easily override these variables on the component host to integrate the tree seamlessly with your application's design system:
+
+```css
+.tree-wrapper ngx-powerful-tree {
+  /* Demonstrate headless design overrides - customize to match playground container theme */
+  --ngx-tree-background: var(--pg-surface);
+  --ngx-tree-text-color: var(--pg-color);
+  --ngx-tree-selection-bg: rgba(59, 130, 246, 0.15);
+  --ngx-tree-row-hover-bg: rgba(255, 255, 255, 0.03);
+  --ngx-tree-focus-ring: var(--pg-accent-blue);
+  --ngx-tree-drag-line: var(--pg-accent-blue);
+  --ngx-tree-container-border: var(--pg-border);
+  --ngx-tree-container-border-radius: 8px;
+  --ngx-tree-font-size-base: 0.92rem;
+  --ngx-tree-row-height-min: 38px;
+  --ngx-tree-row-padding-base: 5px 12px;
+}
+```
+
+## Outputs
+
+| Output             | Payload                                                          |
+| ------------------ | ---------------------------------------------------------------- |
+| `itemMoved`        | `{ draggedId, targetId, position: 'before'\|'after'\|'inside' }` |
+| `itemRenamed`      | `{ id, name }`                                                   |
+| `itemAdded`        | `{ parentId, node }`                                             |
+| `itemDeleted`      | `id`                                                             |
+| `selectionChanged` | `string[]` (sorted ids)                                          |
+| `focusedChanged`   | `string \| null`                                                 |
+| `moveRequested`    | `id` (consumer opens a relocation picker)                        |
+
+`selectionChanged` and `focusedChanged` emit raw — they fire on every
+underlying state change, even when the payload is identical. Dedupe in the
+consumer if you need to.
+
+## Locked subtrees
+
+Set `locked: true` on any node to make it and its descendants read-only.
+The lock is enforced by the store: `addItem`, `deleteItem`, `renameItem`,
+`moveItem`, and `setEditingItemId` reject operations on locked nodes and
+return `false`. Lock state propagates down at runtime — child items
+inherit the lock through `parentMap` traversal, you don't need to set
+`locked` on every descendant.
+
+## Custom templates
+
+Project `<ng-template #itemTemplate>` to override every row, or
+`<ng-template #fileTemplate>` to override only files. Both are looked up
+reactively, so wrapping them in `@if` blocks for conditional rendering is
+supported:
+
+```html
+<ngx-powerful-tree [nodes]="nodes()">
+  @if (useCustomFileTemplate()) {
+  <ng-template #fileTemplate let-item>
+    <!-- your custom file row -->
+  </ng-template>
+  }
+</ngx-powerful-tree>
+```
+
+### Aligning custom rows with default rows
+
+The default folder row starts with a 26px-wide chevron button (or
+placeholder when the folder has no visible children). If you write a custom
+`#fileTemplate`, files won't have that chevron — to make custom files align
+horizontally with sibling folders, reserve the same 26px of leading space
+yourself:
+
+```html
+<ng-template #fileTemplate let-item>
+  <div class="ngx-tree-row-content">
+    <!-- Offset expand button space (26px) so custom files align perfectly with folders -->
+    <div style="width: 26px; flex-shrink: 0" aria-hidden="true"></div>
+
+    <span class="ngx-tree-item-icon"><i class="fa-solid fa-file"></i></span>
+    <span class="ngx-tree-item-name">{{ item.name }}</span>
+  </div>
+</ng-template>
+```
+
+## Running unit tests
 
 ```sh
-npx nx build playground
+nx test ngx-powerful-tree
 ```
-
-To see all available targets to run for a project, run:
-
-```sh
-npx nx show project playground
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/angular:app demo
-```
-
-To generate a new library, use:
-
-```sh
-npx nx g @nx/angular:lib mylib
-```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
