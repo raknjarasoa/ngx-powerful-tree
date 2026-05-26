@@ -3,7 +3,6 @@ import {
   OnInit,
   OnDestroy,
   signal,
-  effect,
   inject,
   PLATFORM_ID,
   viewChild,
@@ -29,7 +28,11 @@ export class AppComponent implements OnInit, OnDestroy {
   treeItems = signal<Record<string, NgxTreeItem>>({});
   treeRootIds = signal<string[]>([]);
   searchQuery = signal<string>('');
-  multiSelect = signal<boolean>(true);
+  multiSelect = signal<boolean>(false);
+  useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
+  allowRename = signal<boolean>(true); // Dynamic user access control for renaming
+  allowDelete = signal<boolean>(true); // Dynamic user access control for deleting
+  truncateNames = signal<boolean>(true); // Dynamic control for name truncation
 
   // Stats & States Signals
   totalItemCount = signal<number>(100000);
@@ -103,7 +106,7 @@ export class AppComponent implements OnInit, OnDestroy {
       const id = `root-folder-${i}`;
       items[id] = {
         id,
-        name: `📁 Archive Volume ${i}`,
+        name: `Archive Volume ${i}`,
         isFolder: true,
         children: [],
       };
@@ -114,7 +117,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const otherUsersId = 'root-folder-15';
     items[otherUsersId] = {
       id: otherUsersId,
-      name: '📁 Other Users (Locked Branch)',
+      name: 'Other Users (Locked Branch)',
       isFolder: true,
       children: [],
       locked: true, // Native locking!
@@ -127,21 +130,27 @@ export class AppComponent implements OnInit, OnDestroy {
       const userId = `other-user-${userIdx}`;
       items[userId] = {
         id: userId,
-        name: `📁 ${userName}`,
+        name: userName,
         isFolder: true,
         children: [],
         locked: true,
       };
       items[otherUsersId].children?.push(userId);
 
-      const files = ['quarterly_review.xlsx', 'personal_notes.txt', 'profile_pic.png'];
-      files.forEach((file, fileIdx) => {
+      // Demonstrate individual item-level custom icon override using FontAwesome classes
+      const files = [
+        { name: 'quarterly_review.xlsx', icon: 'fa-solid fa-file-excel' },
+        { name: 'personal_notes.txt', icon: 'fa-solid fa-file-lines' },
+        { name: 'profile_pic.png', icon: 'fa-solid fa-file-image' },
+      ];
+      files.forEach((fileObj, fileIdx) => {
         const fileId = `other-user-file-${userIdx}-${fileIdx}`;
         items[fileId] = {
           id: fileId,
-          name: `📄 ${file}`,
+          name: fileObj.name,
           isFolder: false,
           locked: true,
+          icon: fileObj.icon, // Node-level custom icon override!
         };
         items[userId].children?.push(fileId);
       });
@@ -172,7 +181,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (isFolder) {
         items[id] = {
           id,
-          name: `📁 Collection_${i}`,
+          name: `Collection_${i}`,
           isFolder: true,
           children: [],
         };
@@ -182,10 +191,32 @@ export class AppComponent implements OnInit, OnDestroy {
         const ext = extensions[Math.floor(Math.random() * extensions.length)];
         items[id] = {
           id,
-          name: `📄 document_report_${i}.${ext}`,
+          name: `document_report_${i}.${ext}`,
           isFolder: false,
         };
         items[parentId].children?.push(id);
+      }
+    }
+    // Guarantee that item-80 exists and is named 'document_report_80.html'
+    const item80Id = 'item-80';
+    if (items[item80Id]) {
+      items[item80Id] = {
+        ...items[item80Id],
+        name: 'document_report_80.html',
+        isFolder: false,
+      };
+    } else {
+      items[item80Id] = {
+        id: item80Id,
+        name: 'document_report_80.html',
+        isFolder: false,
+      };
+      if (rootIds.length > 0) {
+        const fallbackParent = rootIds[0];
+        if (items[fallbackParent]) {
+          items[fallbackParent].children = items[fallbackParent].children || [];
+          items[fallbackParent].children.push(item80Id);
+        }
       }
     }
 
@@ -196,6 +227,23 @@ export class AppComponent implements OnInit, OnDestroy {
     const duration = Math.round(end - start);
     this.benchmarkDuration.set(duration);
     this.addLog(`Loaded ${count} nodes in ${duration}ms! Virtualization renders in real-time.`);
+
+    // Programmatically select item-80 and expand all its ancestor folders so it is visible in the view
+    setTimeout(() => {
+      const tree = this.primaryTree();
+      if (tree) {
+        tree.store.selectItem(item80Id, false);
+        const parentMap = tree.store.parentMap();
+        let parentId = parentMap[item80Id];
+        while (parentId) {
+          tree.store.setExpanded(parentId, true);
+          parentId = parentMap[parentId];
+        }
+        this.addLog(
+          `[Selection Change] Pre-selected 'document_report_80.html' (item-80) and expanded all ancestor folders.`
+        );
+      }
+    }, 100);
   }
 
   // --- Output Listeners ---

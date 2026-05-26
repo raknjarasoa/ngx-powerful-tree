@@ -130,4 +130,52 @@ describe('NgxTreeStore', () => {
     expect(list[3].id).toBe('root-b');
     expect(list[3].depth).toBe(0);
   });
+
+  it('should add new folders at the start of children and roots', () => {
+    // 1. Add folder at root
+    const newRootFolder: NgxTreeItem = {
+      id: 'new-root-folder',
+      name: 'New Root Folder',
+      isFolder: true,
+      children: [],
+    };
+    store.addItem(null, newRootFolder);
+    expect(store.rootIds()[0]).toBe('new-root-folder');
+
+    // 2. Add folder inside parent
+    store.toggleExpand('root-a');
+    const newChildFolder: NgxTreeItem = {
+      id: 'new-child-folder',
+      name: 'New Child Folder',
+      isFolder: true,
+      children: [],
+    };
+    store.addItem('root-a', newChildFolder);
+    expect(store.items()['root-a'].children[0]).toBe('new-child-folder');
+  });
+
+  it('should drop inside an expanded folder at index 0 and a collapsed folder at the end', () => {
+    // 1. Expanded target folder
+    store.setExpanded('child-a2', true); // Expand child-a2
+    // child-a2 children initially has: ['grandchild-a2a']
+    store.moveItem('root-b', 'child-a2', 'inside');
+    expect(store.items()['child-a2'].children[0]).toBe('root-b'); // Placed at first index
+    expect(store.items()['child-a2'].children[1]).toBe('grandchild-a2a');
+
+    // 2. Collapsed target folder
+    store.setExpanded('root-a', false); // Collapse root-a
+    // root-a children: ['child-a1', 'child-a2']
+    store.moveItem('root-b', 'root-a', 'inside');
+    const rootAChildren = store.items()['root-a'].children;
+    expect(rootAChildren[rootAChildren.length - 1]).toBe('root-b'); // Placed at the end
+  });
+
+  it('should deselect the dragged item when dropped', () => {
+    store.selectItem('root-b');
+    expect(store.selectedItems().has('root-b')).toBe(true);
+
+    // Drop root-b inside child-a2
+    store.moveItem('root-b', 'child-a2', 'inside');
+    expect(store.selectedItems().has('root-b')).toBe(false); // Should be deselected
+  });
 });

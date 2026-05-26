@@ -112,6 +112,15 @@ export const NgxTreeStore = signalStore(
         const isEditing = editingItemId === id;
         const isLocked = parentLocked || !!item.locked;
 
+        // Smart children check depending on foldersOnly picker mode
+        const hasChildren = !!(item.isFolder && item.children && item.children.length > 0);
+        const hasFolderChildren = !!(
+          item.isFolder &&
+          item.children &&
+          item.children.some((childId) => items[childId]?.isFolder)
+        );
+        const hasVisibleChildren = store.foldersOnly() ? hasFolderChildren : hasChildren;
+
         list.push({
           id,
           name: item.name,
@@ -126,6 +135,8 @@ export const NgxTreeStore = signalStore(
           matchesSearch: matches,
           locked: isLocked,
           data: item.data,
+          icon: item.icon,
+          hasVisibleChildren,
         });
 
         // Recursively traverse children if expanded (or if under active search)
@@ -239,12 +250,20 @@ export const NgxTreeStore = signalStore(
 
         const rootIds = [...store.rootIds()];
         if (parentId === null) {
-          rootIds.push(newItem.id);
+          if (newItem.isFolder) {
+            rootIds.unshift(newItem.id);
+          } else {
+            rootIds.push(newItem.id);
+          }
         } else {
           const parentItem = currentItems[parentId];
           if (parentItem && parentItem.isFolder) {
             const children = parentItem.children ? [...parentItem.children] : [];
-            children.push(newItem.id);
+            if (newItem.isFolder) {
+              children.unshift(newItem.id);
+            } else {
+              children.push(newItem.id);
+            }
             currentItems[parentId] = { ...parentItem, children };
           }
         }
@@ -363,7 +382,13 @@ export const NgxTreeStore = signalStore(
           const target = currentItems[targetId];
           if (target && target.isFolder) {
             const children = target.children ? [...target.children] : [];
-            children.push(draggedId);
+            // If the folder is expanded, insert at the start (index 0). Otherwise, add to the end.
+            const isExpanded = store.expandedItems().has(targetId);
+            if (isExpanded) {
+              children.unshift(draggedId);
+            } else {
+              children.push(draggedId);
+            }
             currentItems[targetId] = { ...target, children };
 
             // Expand parent target automatically
@@ -390,9 +415,14 @@ export const NgxTreeStore = signalStore(
           }
         }
 
+        // Deselect the dragged item when dropped
+        const selected = new Set(store.selectedItems());
+        selected.delete(draggedId);
+
         patchState(store, {
           items: currentItems,
           rootIds,
+          selectedItems: selected,
           focusedItemId: draggedId,
           dragState: {
             draggedItemId: null,

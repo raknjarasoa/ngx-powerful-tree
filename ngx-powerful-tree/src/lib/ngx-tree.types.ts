@@ -5,6 +5,7 @@ export interface NgxTreeItem<T = any> {
   children?: string[]; // IDs of children (only for folders)
   data?: T; // Custom optional payload
   locked?: boolean; // Lock state for folder and all descendants
+  icon?: string; // Optional class string for custom icons (e.g. FontAwesome)
 }
 
 export type DragPosition = 'before' | 'after' | 'inside' | null;
@@ -33,6 +34,8 @@ export interface NgxTreeProxyItem<T = any> {
   matchesSearch: boolean;
   locked: boolean; // Inherited locked state at runtime
   data?: T;
+  icon?: string; // Runtime resolved custom icon
+  hasVisibleChildren: boolean; // Dynamic child count check for chevron rendering
 }
 
 export interface NgxTreeState<T = any> {
