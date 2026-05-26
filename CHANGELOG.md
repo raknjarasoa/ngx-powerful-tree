@@ -1,3 +1,35 @@
+# [2.0.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v1.1.0...v2.0.0) (2026-05-26)
+
+- feat(tree)!: accept nested NgxTreeNode[] via a single nodes input ([d447c0e](https://github.com/raknjarasoa/ngx-powerful-tree/commit/d447c0e2a230182f412d5d3c5e74061d2f902042))
+- feat(tree)!: own state internally, expose reload(), enforce locks in store ([470cde4](https://github.com/raknjarasoa/ngx-powerful-tree/commit/470cde460233696c912b5b4c2ab8c1c61e4f68e4))
+
+### chore
+
+- **tree:** drop fileTemplate input alias, add directive tests, document contract ([2b57273](https://github.com/raknjarasoa/ngx-powerful-tree/commit/2b572731caf2526daebabdd63e3c1762a1162af5))
+
+### Performance Improvements
+
+- **tree:** debounce search, cache id->index, rAF-throttle dragover ([be13426](https://github.com/raknjarasoa/ngx-powerful-tree/commit/be1342671f0c3f7d64504c6dd457df0ed9235a3b)), closes [hi#frequency](https://github.com/hi/issues/frequency)
+
+### BREAKING CHANGES
+
+- consumers previously passing `[items]` and `[rootIds]`
+  must pass a single `[nodes]` with embedded children. `reload(items, rootIds)`
+  now reads `reload(nodes)`. `itemAdded.item` is renamed to `itemAdded.node`.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+
+- **tree:** consumers previously passing `[fileTemplate]="ref"` as
+  an input must instead project `<ng-template #fileTemplate>` as content.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+
+- `items` and `rootIds` are no longer re-applied on
+  subsequent emissions. Consumers that previously relied on signal
+  re-sync must call `tree.reload(items, rootIds)` to swap data.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+
 # [1.1.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v1.0.0...v1.1.0) (2026-05-26)
 
 ### Features
