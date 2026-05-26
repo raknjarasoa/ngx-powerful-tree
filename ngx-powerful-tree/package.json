@@ -1,6 +1,10 @@
 {
   "name": "ngx-powerful-tree",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raknjarasoa/ngx-powerful-tree.git"
+  },
   "peerDependencies": {
     "@angular/common": "^19.0.0 || ^20.0.0 || ^21.0.0-0 || ^22.0.0-0",
     "@angular/core": "^19.0.0 || ^20.0.0 || ^21.0.0-0 || ^22.0.0-0",
