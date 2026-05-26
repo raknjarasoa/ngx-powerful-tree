@@ -64,7 +64,6 @@ export class NgxTreeRowDirective implements OnInit {
   ariaLevel = computed(() => this.item().depth + 1);
   tabindex = computed(() => (this.store.focusedItemId() === this.item().id ? '0' : '-1'));
 
-  readonly isRow = true;
   isFolder = computed(() => this.item().isFolder);
   isFile = computed(() => !this.item().isFolder);
   isExpanded = computed(() => this.item().isFolder && this.item().expanded);
