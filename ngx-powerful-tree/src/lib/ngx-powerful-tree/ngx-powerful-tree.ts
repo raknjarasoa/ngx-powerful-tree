@@ -6,9 +6,11 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
   NgZone,
   PLATFORM_ID,
   TemplateRef,
+  afterNextRender,
   computed,
   contentChild,
   effect,
@@ -21,7 +23,24 @@ import {
 } from '@angular/core';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
 import { NgxTreeStore } from '../ngx-tree.store';
-import { DragPosition, NgxTreeItem, NgxTreeProxyItem } from '../ngx-tree.types';
+import { DragPosition, NgxTreeItem, NgxTreeProxyItem, SelectableTypes } from '../ngx-tree.types';
+
+// SSR-safe id generator. `crypto.randomUUID` exists in browsers and modern
+// Node, but not in older runtimes — fall back to a stronger random than the
+// deprecated Math.random/substr combo.
+function generateNodeId(): string {
+  const c: Crypto | undefined =
+    typeof globalThis !== 'undefined' ? (globalThis as { crypto?: Crypto }).crypto : undefined;
+  if (c?.randomUUID) return `node-${c.randomUUID()}`;
+  if (c?.getRandomValues) {
+    const buf = new Uint8Array(8);
+    c.getRandomValues(buf);
+    let hex = '';
+    for (const b of buf) hex += b.toString(16).padStart(2, '0');
+    return `node-${hex}`;
+  }
+  return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 @Component({
   selector: 'ngx-powerful-tree',
@@ -41,14 +60,18 @@ export class NgxPowerfulTree implements AfterViewInit {
   private ngZone = inject(NgZone);
   private destroyRef = inject(DestroyRef);
   private platformId = inject(PLATFORM_ID);
+  private injector = inject(Injector);
 
   // --- Modern Signal Inputs ---
+  // `items` and `rootIds` seed the tree on first emission. After that, the
+  // store owns truth. Use `reload()` to swap the dataset explicitly.
   items = input.required<Record<string, NgxTreeItem>>();
   rootIds = input.required<string[]>();
   searchQuery = input<string>('');
   multiSelect = input<boolean>(false);
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
   foldersOnly = input<boolean>(false);
+  selectableTypes = input<SelectableTypes | null>(null);
   readOnly = input<boolean>(false);
   folderIcon = input<string>(''); // Global folder icon CSS class (e.g. 'fa-solid fa-folder')
   fileIcon = input<string>(''); // Global file icon CSS class (e.g. 'fa-solid fa-file')
@@ -81,11 +104,17 @@ export class NgxPowerfulTree implements AfterViewInit {
   viewport = viewChild<CdkVirtualScrollViewport>(CdkVirtualScrollViewport);
   editInputs = viewChildren<ElementRef<HTMLInputElement>>('editInput');
 
+  private initialized = false;
+
   constructor() {
-    // 1. Sync external items & rootIds into the local reactive store
+    // 1. One-shot seed of the store from the inputs. Subsequent emissions are
+    // ignored on purpose — the store owns truth after init. Use `reload()` to
+    // swap the dataset explicitly.
     effect(() => {
       const itemsVal = this.items();
       const rootsVal = this.rootIds();
+      if (this.initialized) return;
+      this.initialized = true;
       untracked(() => {
         this.store.setItems(itemsVal, rootsVal);
       });
@@ -99,17 +128,25 @@ export class NgxPowerfulTree implements AfterViewInit {
       });
     });
 
-    // 3. Emit selections to consumer whenever changed
+    // 3. Emit selections to consumer when membership changes
+    let lastSelectionKey = '';
     effect(() => {
-      const selected = Array.from(this.store.selectedItems());
+      const selectedSet = this.store.selectedItems();
+      const selected = Array.from(selectedSet).sort();
+      const key = selected.join('');
+      if (key === lastSelectionKey) return;
+      lastSelectionKey = key;
       untracked(() => {
         this.selectionChanged.emit(selected);
       });
     });
 
-    // 4. Emit focus changes to consumer
+    // 4. Emit focus changes to consumer when value actually changes
+    let lastFocused: string | null | undefined = undefined;
     effect(() => {
       const focused = this.store.focusedItemId();
+      if (focused === lastFocused) return;
+      lastFocused = focused;
       untracked(() => {
         this.focusedChanged.emit(focused);
       });
@@ -127,11 +164,22 @@ export class NgxPowerfulTree implements AfterViewInit {
       }
     });
 
-    // 6. Sync foldersOnly setting for Picker view mode
+    // 6. Sync foldersOnly visual filter (controls whether files are flattened)
     effect(() => {
       const foldersOnlyVal = this.foldersOnly();
       untracked(() => {
         this.store.setFoldersOnly(foldersOnlyVal);
+      });
+    });
+
+    // 7. Sync selectableTypes. When the consumer doesn't pass it, infer from
+    // foldersOnly so legacy usage keeps working (picker = folders selectable).
+    effect(() => {
+      const explicit = this.selectableTypes();
+      const foldersOnlyVal = this.foldersOnly();
+      const resolved: SelectableTypes = explicit ?? (foldersOnlyVal ? 'folders' : 'files');
+      untracked(() => {
+        this.store.setSelectableTypes(resolved);
       });
     });
   }
@@ -169,9 +217,10 @@ export class NgxPowerfulTree implements AfterViewInit {
     this.moveRequested.emit(id);
   }
 
-  public moveItem(draggedId: string, targetId: string, position: DragPosition) {
-    this.store.moveItem(draggedId, targetId, position);
+  public moveItem(draggedId: string, targetId: string, position: DragPosition): boolean {
+    if (!this.store.moveItem(draggedId, targetId, position)) return false;
     this.itemMoved.emit({ draggedId, targetId, position });
+    return true;
   }
 
   triggerRename(id: string, event: MouseEvent) {
@@ -181,8 +230,7 @@ export class NgxPowerfulTree implements AfterViewInit {
 
   saveRename(id: string, newName: string) {
     const trimmed = newName.trim();
-    if (trimmed && trimmed !== this.store.items()[id]?.name) {
-      this.store.renameItem(id, trimmed);
+    if (this.store.renameItem(id, trimmed)) {
       this.itemRenamed.emit({ id, name: trimmed });
     } else {
       this.cancelRename();
@@ -195,41 +243,43 @@ export class NgxPowerfulTree implements AfterViewInit {
 
   triggerDelete(id: string, event: MouseEvent) {
     event.stopPropagation();
-    this.store.deleteItem(id);
-    this.itemDeleted.emit(id);
+    if (this.store.deleteItem(id)) {
+      this.itemDeleted.emit(id);
+    }
   }
 
   triggerAddFolder(parentId: string, event: MouseEvent) {
     event.stopPropagation();
-    const newId = `new-folder-${Math.random().toString(36).substr(2, 9)}`;
-    const newItem: NgxTreeItem = {
-      id: newId,
-      name: 'New Folder',
-      isFolder: true,
-      children: [],
-    };
-    this.store.addItem(parentId, newItem);
-    this.itemAdded.emit({ parentId, item: newItem });
-    // Trigger editing state for immediate renaming
-    setTimeout(() => {
-      this.store.setEditingItemId(newId);
-    }, 50);
+    this.createFolder(parentId);
   }
 
   // Public component methods for programmatically adding folders at root
   public addRootFolder(name = 'New Root Folder') {
-    const newId = `new-folder-${Math.random().toString(36).substr(2, 9)}`;
+    this.createFolder(null, name);
+  }
+
+  // Public method to reload the dataset. Clears expand/select/focus/search/drag state.
+  public reload(items: Record<string, NgxTreeItem>, rootIds: string[]) {
+    this.store.reload(items, rootIds);
+  }
+
+  private createFolder(parentId: string | null, name = 'New Folder') {
+    const newId = generateNodeId();
     const newItem: NgxTreeItem = {
       id: newId,
       name,
       isFolder: true,
       children: [],
     };
-    this.store.addItem(null, newItem);
-    this.itemAdded.emit({ parentId: null, item: newItem });
-    setTimeout(() => {
-      this.store.setEditingItemId(newId);
-    }, 50);
+    if (!this.store.addItem(parentId, newItem)) return;
+    this.itemAdded.emit({ parentId, item: newItem });
+    // Defer editing-state activation until the row is rendered by virtual scroll.
+    afterNextRender(
+      () => {
+        this.store.setEditingItemId(newId);
+      },
+      { injector: this.injector }
+    );
   }
 
   // --- Keyboard Event Handler ---
@@ -332,8 +382,7 @@ export class NgxPowerfulTree implements AfterViewInit {
 
       case 'Delete':
         event.preventDefault();
-        if (!this.readOnly() && !currentItem.locked) {
-          this.store.deleteItem(currentItem.id);
+        if (!this.readOnly() && this.store.deleteItem(currentItem.id)) {
           this.itemDeleted.emit(currentItem.id);
         }
         break;

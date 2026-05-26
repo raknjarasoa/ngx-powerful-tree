@@ -37,10 +37,10 @@ describe('NgxPowerfulTree', () => {
 
   it('should not allow triggering edit rename when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload(
+      { 'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] } },
+      ['folder-1']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -49,15 +49,15 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(event);
 
     fixture.detectChanges();
-    expect(component.store.editingItemId()).toBeNull(); // Should not enter editing state!
+    expect(component.store.editingItemId()).toBeNull();
   });
 
   it('should not allow deleting items when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload(
+      { 'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] } },
+      ['folder-1']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -66,21 +66,23 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(event);
 
     fixture.detectChanges();
-    expect(component.store.items()['folder-1']).toBeDefined(); // Should not be deleted!
+    expect(component.store.items()['folder-1']).toBeDefined();
   });
 
   it('should propagate locked property from parent folder to children recursively', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-folder': {
-        id: 'locked-folder',
-        name: 'Locked Folder',
-        isFolder: true,
-        children: ['child-file'],
-        locked: true,
+    component.reload(
+      {
+        'locked-folder': {
+          id: 'locked-folder',
+          name: 'Locked Folder',
+          isFolder: true,
+          children: ['child-file'],
+          locked: true,
+        },
+        'child-file': { id: 'child-file', name: 'Child File', isFolder: false },
       },
-      'child-file': { id: 'child-file', name: 'Child File', isFolder: false },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-folder']);
+      ['locked-folder']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -92,14 +94,14 @@ describe('NgxPowerfulTree', () => {
     const childNode = flattened.find((i) => i.id === 'child-file');
 
     expect(parentNode?.locked).toBe(true);
-    expect(childNode?.locked).toBe(true); // Propagated successfully!
+    expect(childNode?.locked).toBe(true);
   });
 
   it('should block renaming locked items via F2 keydown', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    component.reload(
+      { 'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true } },
+      ['locked-file']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -108,14 +110,14 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(event);
 
     fixture.detectChanges();
-    expect(component.store.editingItemId()).toBeNull(); // Blocked!
+    expect(component.store.editingItemId()).toBeNull();
   });
 
   it('should block deleting locked items via Delete keydown', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    component.reload(
+      { 'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true } },
+      ['locked-file']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -124,7 +126,30 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(event);
 
     fixture.detectChanges();
-    expect(component.store.items()['locked-file']).toBeDefined(); // Blocked!
+    expect(component.store.items()['locked-file']).toBeDefined();
+  });
+
+  it('should expose a reload() method that swaps the dataset and clears state', async () => {
+    component.reload(
+      {
+        a: { id: 'a', name: 'A', isFolder: true, children: ['b'] },
+        b: { id: 'b', name: 'B', isFolder: false },
+      },
+      ['a']
+    );
+    component.store.toggleExpand('a');
+    component.store.selectItem('b');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.store.selectedItems().has('b')).toBe(true);
+
+    component.reload({ c: { id: 'c', name: 'C', isFolder: false } }, ['c']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.store.items()['a']).toBeUndefined();
+    expect(component.store.items()['c']).toBeDefined();
+    expect(component.store.selectedItems().size).toBe(0);
+    expect(component.store.expandedItems().size).toBe(0);
   });
 
   it('should accept custom fileTemplate input and resolve it via computed property', () => {
@@ -135,11 +160,13 @@ describe('NgxPowerfulTree', () => {
   });
 
   it('should run dragover events outside Angular Zone to optimize FPS and prevent change detection cycles', async () => {
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: ['file-1'] },
-      'file-1': { id: 'file-1', name: 'File 1', isFolder: false },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload(
+      {
+        'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: ['file-1'] },
+        'file-1': { id: 'file-1', name: 'File 1', isFolder: false },
+      },
+      ['folder-1']
+    );
     fixture.detectChanges();
     await fixture.whenStable();
 

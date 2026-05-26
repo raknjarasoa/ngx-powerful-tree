@@ -250,16 +250,13 @@ export class NgxTreeRowDirective implements OnInit {
 
     if (draggedId && dragOverItemId && position && draggedId !== dragOverItemId) {
       this.ngZone.run(() => {
-        // Perform the move in local state store
-        this.store.moveItem(draggedId, dragOverItemId, position);
-
-        // Emit event for consumer syncing
-        this.itemMoved.emit({
-          draggedId,
-          targetId: dragOverItemId,
-          position,
-        });
-
+        if (this.store.moveItem(draggedId, dragOverItemId, position)) {
+          this.itemMoved.emit({
+            draggedId,
+            targetId: dragOverItemId,
+            position,
+          });
+        }
         this.store.clearDragState();
       });
     } else {

@@ -38,6 +38,8 @@ export interface NgxTreeProxyItem<T = any> {
   hasVisibleChildren: boolean; // Dynamic child count check for chevron rendering
 }
 
+export type SelectableTypes = 'files' | 'folders' | 'all';
+
 export interface NgxTreeState<T = any> {
   items: Record<string, NgxTreeItem<T>>;
   rootIds: string[];
@@ -47,5 +49,6 @@ export interface NgxTreeState<T = any> {
   editingItemId: string | null;
   searchQuery: string;
   dragState: DragState;
+  selectableTypes: SelectableTypes;
   foldersOnly: boolean;
 }
