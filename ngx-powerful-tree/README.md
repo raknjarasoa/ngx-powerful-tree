@@ -2,7 +2,8 @@
 
 A virtualized Angular tree component with native HTML5 drag-and-drop, fluid
 search, locked subtrees, and folder/file picker modes. Built on
-`@ngrx/signals` and `@angular/cdk/scrolling`.
+`@ngrx/signals` and `@angular/cdk/scrolling`. Designed to stay smooth at
+100k+ rows.
 
 ## Installation
 
@@ -13,14 +14,15 @@ npm i ngx-powerful-tree @angular/cdk @ngrx/signals
 ## Quick start
 
 ```ts
-import { NgxPowerfulTree, NgxTreeItem } from 'ngx-powerful-tree';
+import { Component, signal, viewChild } from '@angular/core';
+import { NgxPowerfulTree, NgxTreeNode } from 'ngx-powerful-tree';
 
 @Component({
   imports: [NgxPowerfulTree],
   template: `
     <ngx-powerful-tree
-      [items]="items()"
-      [rootIds]="rootIds()"
+      #tree
+      [nodes]="nodes()"
       [searchQuery]="search()"
       (itemMoved)="onMoved($event)"
       (itemRenamed)="onRenamed($event)"
@@ -29,33 +31,36 @@ import { NgxPowerfulTree, NgxTreeItem } from 'ngx-powerful-tree';
   `,
 })
 export class MyTree {
-  items = signal<Record<string, NgxTreeItem>>({...});
-  rootIds = signal<string[]>(['root']);
-  ...
+  tree = viewChild.required<NgxPowerfulTree>('tree');
+
+  nodes = signal<NgxTreeNode[]>([
+    {
+      id: 'src',
+      name: 'src',
+      isFolder: true,
+      children: [{ id: 'app.ts', name: 'app.ts', isFolder: false }],
+    },
+  ]);
+  search = signal<string>('');
+
+  async refresh() {
+    const data = await this.api.fetchTree();
+    this.tree().reload(data);
+  }
 }
 ```
 
 ## State ownership: the contract
 
-**The tree owns its state after the first input emission.** `items` and
-`rootIds` are read once on mount and then ignored — internal mutations
-(move/rename/add/delete via the UI or store) survive parent re-emissions
-without being silently overwritten.
+**The tree owns its state after the first input emission.** `nodes` is read
+once on mount and then ignored — internal mutations (move/rename/add/delete
+via the UI or store) survive parent re-emissions without being silently
+overwritten.
 
 To swap the dataset entirely (e.g. after loading from a server), call the
-public `reload()` method:
-
-```ts
-@ViewChild('tree') tree!: NgxPowerfulTree;
-
-async refresh() {
-  const data = await this.api.fetchTree();
-  this.tree.reload(data.items, data.rootIds);
-}
-```
-
-`reload()` also clears expand/select/focus/search/drag state so the new
-dataset starts from a clean slate.
+public `reload()` method. It accepts the same nested `NgxTreeNode[]` shape
+as the `nodes` input and clears expand/select/focus/search/drag state so
+the new dataset starts from a clean slate.
 
 To keep an external mirror in sync, subscribe to the fine-grained outputs
 (`itemMoved`, `itemRenamed`, `itemAdded`, `itemDeleted`,
@@ -64,24 +69,37 @@ snapshot — at 100k+ items that would dwarf the cost of the mutation itself.
 
 ## Inputs
 
-| Input                | Type                                    | Default | Description                                                                                     |
-| -------------------- | --------------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `items` (required)   | `Record<string, NgxTreeItem>`           | —       | Seed item registry. Read once on first emission.                                                |
-| `rootIds` (required) | `string[]`                              | —       | Seed root order. Read once on first emission.                                                   |
-| `searchQuery`        | `string`                                | `''`    | Substring filter. Debounced by `searchDebounceMs`.                                              |
-| `searchDebounceMs`   | `number`                                | `120`   | Debounce window for search input. `0` to apply immediately.                                     |
-| `multiSelect`        | `boolean`                               | `false` | Allow selecting multiple items with click + meta or Space.                                      |
-| `itemSize`           | `number`                                | `40`    | Row height in pixels for `CdkVirtualScrollViewport`.                                            |
-| `foldersOnly`        | `boolean`                               | `false` | Visual filter: hide files entirely. Useful for folder pickers.                                  |
-| `selectableTypes`    | `'files' \| 'folders' \| 'all' \| null` | `null`  | Which item kinds can be selected. When `null`, inferred from `foldersOnly` (`'folders'` if on). |
-| `readOnly`           | `boolean`                               | `false` | Disable drag/rename/delete/add UI.                                                              |
-| `folderIcon`         | `string`                                | `''`    | Global folder icon CSS class (e.g. `'fa-solid fa-folder'`).                                     |
-| `fileIcon`           | `string`                                | `''`    | Global file icon CSS class (e.g. `'fa-solid fa-file'`).                                         |
-| `truncate`           | `boolean`                               | `true`  | Truncate row names with ellipsis when they overflow.                                            |
-| `allowAdd`           | `boolean`                               | `true`  | Show the inline add-folder button on hover.                                                     |
-| `allowRename`        | `boolean`                               | `true`  | Show the inline rename button on hover.                                                         |
-| `allowDelete`        | `boolean`                               | `true`  | Show the inline delete button on hover.                                                         |
-| `allowMove`          | `boolean`                               | `true`  | Show the inline move-to button on hover (emits `moveRequested`).                                |
+| Input              | Type                            | Default   | Description                                                                            |
+| ------------------ | ------------------------------- | --------- | -------------------------------------------------------------------------------------- |
+| `nodes` (required) | `NgxTreeNode[]`                 | —         | Seed dataset. Read once on first emission; call `reload(nodes)` to swap it afterwards. |
+| `searchQuery`      | `string`                        | `''`      | Substring filter. Debounced by `searchDebounceMs`.                                     |
+| `searchDebounceMs` | `number`                        | `120`     | Debounce window for search input. `0` to apply immediately.                            |
+| `multiSelect`      | `boolean`                       | `false`   | Allow selecting multiple items with click + meta or Space.                             |
+| `itemSize`         | `number`                        | `40`      | Row height in pixels for `CdkVirtualScrollViewport`.                                   |
+| `selectableTypes`  | `'files' \| 'folders' \| 'all'` | `'files'` | Which item kinds can be selected. Use `'folders'` for a folder picker.                 |
+| `readOnly`         | `boolean`                       | `false`   | Disable drag/rename/delete/add UI.                                                     |
+| `actions`          | `NgxTreeActions`                | `{}`      | Per-action availability. See below.                                                    |
+
+### `actions` input
+
+`NgxTreeActions` has four optional keys — `add`, `rename`, `delete`, `move`.
+Each value can be a `boolean` or a per-row predicate
+`(item: NgxTreeProxyItem) => boolean`. **Omitted keys default to `true`.**
+
+```ts
+// Disable delete globally, keep add/rename/move
+[actions] = // Disable delete for folders that still have children
+'{ delete: false }'[actions] = '{ delete: (item) => !item.isFolder || item.children.length === 0 }';
+```
+
+### Truncate vs wrap
+
+Names are truncated with an ellipsis by default. To let names wrap onto
+multiple lines, add the `ngx-tree-wrap` class on the host:
+
+```html
+<ngx-powerful-tree [nodes]="nodes()" class="ngx-tree-wrap" />
+```
 
 ## Outputs
 
@@ -89,18 +107,19 @@ snapshot — at 100k+ items that would dwarf the cost of the mutation itself.
 | ------------------ | ---------------------------------------------------------------- |
 | `itemMoved`        | `{ draggedId, targetId, position: 'before'\|'after'\|'inside' }` |
 | `itemRenamed`      | `{ id, name }`                                                   |
-| `itemAdded`        | `{ parentId, item }`                                             |
+| `itemAdded`        | `{ parentId, node }`                                             |
 | `itemDeleted`      | `id`                                                             |
 | `selectionChanged` | `string[]` (sorted ids)                                          |
 | `focusedChanged`   | `string \| null`                                                 |
 | `moveRequested`    | `id` (consumer opens a relocation picker)                        |
 
-`selectionChanged` and `focusedChanged` only fire when the payload
-actually changes — identity-equality is checked before emit.
+`selectionChanged` and `focusedChanged` emit raw — they fire on every
+underlying state change, even when the payload is identical. Dedupe in the
+consumer if you need to.
 
 ## Locked subtrees
 
-Set `locked: true` on any item to make it and its descendants read-only.
+Set `locked: true` on any node to make it and its descendants read-only.
 The lock is enforced by the store: `addItem`, `deleteItem`, `renameItem`,
 `moveItem`, and `setEditingItemId` reject operations on locked nodes and
 return `false`. Lock state propagates down at runtime — child items
@@ -115,13 +134,33 @@ reactively, so wrapping them in `@if` blocks for conditional rendering is
 supported:
 
 ```html
-<ngx-powerful-tree [items]="..." [rootIds]="...">
+<ngx-powerful-tree [nodes]="nodes()">
   @if (useCustomFileTemplate()) {
   <ng-template #fileTemplate let-item>
     <!-- your custom file row -->
   </ng-template>
   }
 </ngx-powerful-tree>
+```
+
+### Aligning custom rows with default rows
+
+The default folder row starts with a 26px-wide chevron button (or
+placeholder when the folder has no visible children). If you write a custom
+`#fileTemplate`, files won't have that chevron — to make custom files align
+horizontally with sibling folders, reserve the same 26px of leading space
+yourself:
+
+```html
+<ng-template #fileTemplate let-item>
+  <div class="ngx-tree-row-content">
+    <!-- Offset expand button space (26px) so custom files align perfectly with folders -->
+    <div style="width: 26px; flex-shrink: 0" aria-hidden="true"></div>
+
+    <span class="ngx-tree-item-icon"><i class="fa-solid fa-file"></i></span>
+    <span class="ngx-tree-item-name">{{ item.name }}</span>
+  </div>
+</ng-template>
 ```
 
 ## Running unit tests

@@ -1,18 +1,20 @@
 import { TestBed } from '@angular/core/testing';
-import { App } from './app';
-import { NxWelcome } from './nx-welcome';
+import { provideRouter } from '@angular/router';
+import { AppComponent } from './app';
 
-describe('App', () => {
+describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App, NxWelcome],
+      imports: [AppComponent],
+      providers: [provideRouter([])],
     }).compileComponents();
   });
 
-  it('should render title', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+  it('should render the navigation shell', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Welcome playground');
+    expect(compiled.querySelector('.app-nav')?.textContent).toContain('ngx-powerful-tree');
+    expect(compiled.querySelector('router-outlet')).not.toBeNull();
   });
 });

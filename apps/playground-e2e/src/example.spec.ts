@@ -2,8 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('ngx-powerful-tree Playground E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to playground home
-    await page.goto('/');
+    await page.goto('/playground');
   });
 
   test('should load playground header and performance stats', async ({ page }) => {
