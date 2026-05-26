@@ -1,26 +1,41 @@
-/* Minimal & Vital Tree Styling */
+/* ==========================================================================
+   ngx-powerful-tree.css
+   ========================================================================== */
 
 .ngx-tree-container {
-  /* Light Theme Variables */
-  --ngx-tree-bg: #ffffff;
-  --ngx-tree-color: #0f172a;
-  --ngx-tree-selected-bg: #e2e8f0;
-  --ngx-tree-hover-bg: #f8fafc;
-  --ngx-tree-focused-outline: #3b82f6;
-  --ngx-tree-drag-border: #2563eb;
-  --ngx-tree-accent: #fef08a; /* Highlight for search matches */
-  --ngx-tree-action-color: #64748b;
-  --ngx-tree-action-hover: #0f172a;
-  --ngx-tree-border: #cbd5e1;
+  /* ------------------------------------------------------------------------
+     Theme Customization Variables (Headless & Overridable Configuration)
+     Consumers can override these standard variables in their host element
+     or style bindings to completely match their brand guidelines.
+     ------------------------------------------------------------------------ */
+  --ngx-tree-bg: var(--ngx-tree-background, #ffffff);
+  --ngx-tree-color: var(--ngx-tree-text-color, #0f172a);
+  --ngx-tree-selected-bg: var(--ngx-tree-selection-bg, #e2e8f0);
+  --ngx-tree-hover-bg: var(--ngx-tree-row-hover-bg, #f8fafc);
+  --ngx-tree-focused-outline: var(--ngx-tree-focus-ring, #3b82f6);
+  --ngx-tree-drag-border: var(--ngx-tree-drag-line, #2563eb);
+  --ngx-tree-accent: var(--ngx-tree-search-match-bg, #fef08a);
+  --ngx-tree-action-color: var(--ngx-tree-action-icon-color, #64748b);
+  --ngx-tree-action-hover: var(--ngx-tree-action-icon-hover, #0f172a);
+  --ngx-tree-border: var(--ngx-tree-container-border, #cbd5e1);
+  --ngx-tree-border-radius: var(--ngx-tree-container-border-radius, 4px);
+  --ngx-tree-font-family: var(--ngx-tree-font-stack, system-ui, -apple-system, sans-serif);
+  
+  /* Sizing and Spacing custom variables */
+  --ngx-tree-font-size: var(--ngx-tree-font-size-base, 0.95rem);
+  --ngx-tree-row-padding: var(--ngx-tree-row-padding-base, 6px 12px);
+  --ngx-tree-row-min-height: var(--ngx-tree-row-height-min, 40px);
+  --ngx-tree-arrow-size: var(--ngx-tree-arrow-icon-size, 18px);
+  --ngx-tree-icon-size: var(--ngx-tree-icon-size-base, 20px);
 
+  /* Aesthetic styles */
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--ngx-tree-font-family);
   border: 1px solid var(--ngx-tree-border);
-  border-radius: 4px;
+  border-radius: var(--ngx-tree-border-radius);
+
+  /* Mandatory Core Layout */
   overflow: hidden;
   height: 100%;
   display: flex;
@@ -28,21 +43,30 @@
   box-sizing: border-box;
 }
 
-/* Dark Theme Variables */
+/* ------------------------------------------------------------------------
+   Native Dark Theme Customization Variables
+   Provides dynamic and beautiful out-of-the-box system-scheme adjustments.
+   ------------------------------------------------------------------------ */
 @media (prefers-color-scheme: dark) {
   .ngx-tree-container {
-    --ngx-tree-bg: #0f172a;
-    --ngx-tree-color: #f8fafc;
-    --ngx-tree-selected-bg: #1e293b;
-    --ngx-tree-hover-bg: #1e293b80;
-    --ngx-tree-focused-outline: #60a5fa;
-    --ngx-tree-drag-border: #60a5fa;
-    --ngx-tree-accent: #854d0e;
-    --ngx-tree-action-color: #94a3b8;
-    --ngx-tree-action-hover: #ffffff;
-    --ngx-tree-border: #334155;
+    --ngx-tree-bg: var(--ngx-tree-background, #0f172a);
+    --ngx-tree-color: var(--ngx-tree-text-color, #f8fafc);
+    --ngx-tree-selected-bg: var(--ngx-tree-selection-bg, #1e293b);
+    --ngx-tree-hover-bg: var(--ngx-tree-row-hover-bg, #1e293b80);
+    --ngx-tree-focused-outline: var(--ngx-tree-focus-ring, #60a5fa);
+    --ngx-tree-drag-border: var(--ngx-tree-drag-line, #60a5fa);
+    --ngx-tree-accent: var(--ngx-tree-search-match-bg, #854d0e);
+    --ngx-tree-action-color: var(--ngx-tree-action-icon-color, #94a3b8);
+    --ngx-tree-action-hover: var(--ngx-tree-action-icon-hover, #ffffff);
+    --ngx-tree-border: var(--ngx-tree-container-border, #334155);
   }
 }
+
+/* ==========================================================================
+   PART 1: CORE LAYOUT & STRUCTURAL STYLES (MANDATORY)
+   DO NOT MODIFY OR DELETE these rules without deep virtual scrolling / DnD validation.
+   These handle performance, layout shift prevention, and fluid scrolling.
+   ========================================================================== */
 
 .ngx-tree-viewport {
   width: 100%;
@@ -54,8 +78,6 @@
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 40px;
-  height: auto;
   box-sizing: border-box;
   outline: none;
   cursor: pointer;
@@ -63,33 +85,16 @@
   position: relative;
 }
 
-/* Hover & Selected States */
-.ngx-tree-row-wrapper:hover {
-  background-color: var(--ngx-tree-hover-bg);
+.ngx-tree-row-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  min-width: 0; /* Enable proper flex shrinking down hierarchical deep nests */
 }
 
-.ngx-tree-row-wrapper.ngx-tree-row--selected {
-  background-color: var(--ngx-tree-selected-bg);
-}
-
-/* Focus Outline */
-.ngx-tree-row-wrapper.ngx-tree-row--focused {
-  outline: 2px solid var(--ngx-tree-focused-outline);
-  outline-offset: -2px;
-  z-index: 10;
-}
-
-.ngx-tree-row-wrapper.ngx-tree-row--editing {
-  background-color: var(--ngx-tree-hover-bg);
-}
-
-/* Dragging Opacity */
-.ngx-tree-row-wrapper.ngx-tree-row--dragging {
-  opacity: 0.5;
-  border: 1px dashed var(--ngx-tree-action-color);
-}
-
-/* Drag indicator overlay */
+/* Drag placement coordinate indicator overlay */
 .ngx-tree-row-wrapper::after {
   content: '';
   position: absolute;
@@ -112,66 +117,24 @@
   opacity: 1;
 }
 
-.ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
-  background-color: var(--ngx-tree-selected-bg) !important;
-  box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
-}
-
-.ngx-tree-row-content {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 40px;
-  height: auto;
-  padding: 6px 12px;
-  box-sizing: border-box;
-  min-width: 0; /* Enable proper flex shrinking down the hierarchy */
-}
-
-/* Expand Arrow */
 .ngx-tree-arrow-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  padding: 4px;
-  margin-right: 4px;
-  color: var(--ngx-tree-action-color);
   cursor: pointer;
 }
 
-.ngx-tree-arrow-btn:hover {
-  color: var(--ngx-tree-action-hover);
-}
-
-.ngx-tree-arrow-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.ngx-tree-arrow-icon--expanded {
-  transform: rotate(90deg);
-}
-
 .ngx-tree-arrow-placeholder {
-  width: 26px; /* Space equivalent to expand button to align files with folders */
+  flex-shrink: 0;
 }
 
-/* Icons */
 .ngx-tree-item-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--ngx-tree-action-color);
-  margin-right: 8px;
-  width: 20px;
-  height: 20px;
 }
 
-/* Custom icon support via FontAwesome or similar classes */
 .ngx-tree-item-icon i {
-  font-size: 1rem;
   width: 100%;
   height: 100%;
   display: inline-flex;
@@ -179,7 +142,6 @@
   justify-content: center;
 }
 
-/* Name and Edit Input */
 .ngx-tree-item-text {
   flex-grow: 1;
   display: grid;
@@ -190,10 +152,8 @@
   gap: 4px;
 }
 
-/* Default: truncate with ellipsis. Add `.ngx-tree-wrap` on the host to allow
-   names to wrap onto multiple lines instead. */
+/* Elite CSS Text-Truncation Engine (default) with overridable multiline wrapping */
 .ngx-tree-item-name {
-  font-size: 0.95rem;
   min-width: 0;
   display: inline-block;
   max-width: 100%;
@@ -208,17 +168,140 @@
   overflow: visible;
   text-overflow: clip;
   word-break: break-word;
+}
+
+.ngx-tree-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.ngx-tree-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.ngx-tree-row-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.ngx-tree-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ngx-tree-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ==========================================================================
+   PART 2: HEADLESS WIREFRAME AESTHETICS & THEME CUSTOMIZATION
+   Clean, simple, highly accessible wireframed appearance that handles default visual representation.
+   ========================================================================== */
+
+.ngx-tree-row-wrapper {
+  min-height: var(--ngx-tree-row-min-height);
+  height: auto;
+}
+
+/* Hover & Selected States */
+.ngx-tree-row-wrapper:hover {
+  background-color: var(--ngx-tree-hover-bg);
+}
+
+.ngx-tree-row-wrapper.ngx-tree-row--selected {
+  background-color: var(--ngx-tree-selected-bg);
+}
+
+/* Focus Ring (Compliant with accessibility outline requirements) */
+.ngx-tree-row-wrapper.ngx-tree-row--focused {
+  outline: 2px solid var(--ngx-tree-focused-outline);
+  outline-offset: -2px;
+  z-index: 10;
+}
+
+.ngx-tree-row-wrapper.ngx-tree-row--editing {
+  background-color: var(--ngx-tree-hover-bg);
+}
+
+/* Dragging Opacity and Dotted Borders */
+.ngx-tree-row-wrapper.ngx-tree-row--dragging {
+  opacity: 0.5;
+  border: 1px dashed var(--ngx-tree-action-color);
+}
+
+.ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
+  background-color: var(--ngx-tree-selected-bg) !important;
+  box-shadow: inset 0 0 0 2px var(--ngx-tree-drag-border);
+}
+
+.ngx-tree-row-content {
+  min-height: var(--ngx-tree-row-min-height);
+  padding: var(--ngx-tree-row-padding);
+}
+
+/* Expand Arrow styling */
+.ngx-tree-arrow-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin-right: 4px;
+  color: var(--ngx-tree-action-color);
+  transition: color 0.15s ease;
+}
+
+.ngx-tree-arrow-btn:hover {
+  color: var(--ngx-tree-action-hover);
+}
+
+.ngx-tree-arrow-icon {
+  width: var(--ngx-tree-arrow-size);
+  height: var(--ngx-tree-arrow-size);
+  transition: transform 0.15s ease-in-out;
+}
+
+.ngx-tree-arrow-icon--expanded {
+  transform: rotate(90deg);
+}
+
+.ngx-tree-arrow-placeholder {
+  width: calc(var(--ngx-tree-arrow-size) + 8px); /* Space matches button padding+size */
+}
+
+/* Icons */
+.ngx-tree-item-icon {
+  color: var(--ngx-tree-action-color);
+  margin-right: 8px;
+  width: var(--ngx-tree-icon-size);
+  height: var(--ngx-tree-icon-size);
+}
+
+.ngx-tree-item-icon i {
+  font-size: 1rem;
+}
+
+.ngx-tree-item-name {
+  font-size: var(--ngx-tree-font-size);
+}
+
+:host(.ngx-tree-wrap) .ngx-tree-item-name {
   line-height: 1.25;
 }
 
 .ngx-tree-locked-badge {
   margin-left: 6px;
-  display: inline-flex;
-  align-items: center;
-  color: var(--ngx-tree-color-muted, #64748b);
+  color: var(--ngx-tree-color);
   opacity: 0.6;
-  vertical-align: middle;
-  flex-shrink: 0;
 }
 
 .ngx-tree-item-name--matched {
@@ -229,53 +312,43 @@
 }
 
 .ngx-tree-edit-input {
-  width: 100%;
   padding: 4px;
   border: 1px solid var(--ngx-tree-focused-outline);
   border-radius: 2px;
   background-color: var(--ngx-tree-bg);
   color: var(--ngx-tree-color);
   font-size: 0.9rem;
-  outline: none;
 }
 
-/* Actions panel - simple hover visibility */
+/* Row Action Panel & Animation */
 .ngx-tree-row-actions {
-  display: flex;
-  align-items: center;
   gap: 4px;
   opacity: 0;
-  margin-left: auto;
+  transition: opacity 0.15s ease-in-out;
 }
 
-.ngx-tree-row-wrapper:hover .ngx-tree-row-actions {
+.ngx-tree-row-wrapper:hover .ngx-tree-row-actions,
+.ngx-tree-row-wrapper.ngx-tree-row--focused .ngx-tree-row-actions {
   opacity: 1;
 }
 
 .ngx-tree-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: none;
   border: none;
   color: var(--ngx-tree-action-color);
-  cursor: pointer;
   padding: 4px;
+  transition: color 0.15s ease;
 }
 
 .ngx-tree-action-btn:hover {
   color: var(--ngx-tree-action-hover);
 }
 
-/* Empty State */
+/* Empty State aesthetics */
 .ngx-tree-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: 40px 16px;
   color: var(--ngx-tree-action-color);
-  font-size: 0.95rem;
+  font-size: var(--ngx-tree-font-size);
   gap: 8px;
 }
 

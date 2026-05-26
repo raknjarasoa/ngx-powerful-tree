@@ -107,6 +107,27 @@ multiple lines, add the `ngx-tree-wrap` class on the host:
 <ngx-powerful-tree [nodes]="nodes()" class="ngx-tree-wrap" />
 ```
 
+## Headless Theming (CSS Variables)
+
+The tree provides a clean, wireframed design that delegates all colors, spacings, and borders to CSS variables. You can easily override these variables on the component host to integrate the tree seamlessly with your application's design system:
+
+```css
+.tree-wrapper ngx-powerful-tree {
+  /* Demonstrate headless design overrides - customize to match playground container theme */
+  --ngx-tree-background: var(--pg-surface);
+  --ngx-tree-text-color: var(--pg-color);
+  --ngx-tree-selection-bg: rgba(59, 130, 246, 0.15);
+  --ngx-tree-row-hover-bg: rgba(255, 255, 255, 0.03);
+  --ngx-tree-focus-ring: var(--pg-accent-blue);
+  --ngx-tree-drag-line: var(--pg-accent-blue);
+  --ngx-tree-container-border: var(--pg-border);
+  --ngx-tree-container-border-radius: 8px;
+  --ngx-tree-font-size-base: 0.92rem;
+  --ngx-tree-row-height-min: 38px;
+  --ngx-tree-row-padding-base: 5px 12px;
+}
+```
+
 ## Outputs
 
 | Output             | Payload                                                          |

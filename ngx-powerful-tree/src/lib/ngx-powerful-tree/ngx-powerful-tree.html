@@ -1,5 +1,5 @@
 <div class="ngx-tree-container" tabindex="-1">
-  <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport">
+  <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport" role="tree">
     <div
       *cdkVirtualFor="let item of store.flattenedStructure().list; trackBy: trackById; let idx = index"
       ngxTreeRow
