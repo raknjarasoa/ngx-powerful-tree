@@ -11,7 +11,6 @@ import {
   PLATFORM_ID,
   TemplateRef,
   afterNextRender,
-  computed,
   contentChild,
   effect,
   inject,
@@ -96,11 +95,12 @@ export class NgxPowerfulTree implements AfterViewInit {
   moveRequested = output<string>();
 
   // --- Signal-based View & Content Queries ---
+  // Content-projected templates. Use `<ng-template #itemTemplate let-item>` to
+  // override every row, or `<ng-template #fileTemplate let-item>` to override
+  // only files. Both are looked up reactively, so wrapping them in `@if`
+  // blocks for conditional rendering is supported.
   itemTemplate = contentChild<TemplateRef<unknown>>('itemTemplate');
-  // eslint-disable-next-line @angular-eslint/no-input-rename
-  fileTemplateInput = input<TemplateRef<unknown> | null>(null, { alias: 'fileTemplate' });
-  fileTemplateContent = contentChild<TemplateRef<unknown>>('fileTemplate');
-  fileTemplate = computed(() => this.fileTemplateInput() || this.fileTemplateContent() || null);
+  fileTemplate = contentChild<TemplateRef<unknown>>('fileTemplate');
 
   viewport = viewChild<CdkVirtualScrollViewport>(CdkVirtualScrollViewport);
   editInputs = viewChildren<ElementRef<HTMLInputElement>>('editInput');

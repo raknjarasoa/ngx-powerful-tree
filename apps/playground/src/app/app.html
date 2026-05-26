@@ -207,9 +207,9 @@
             (selectionChanged)="onSelectionChanged($event)"
             (focusedChanged)="onFocusedChanged($event)"
             (moveRequested)="onMoveRequested($event)"
-            [fileTemplate]="useCustomFileTemplate() ? customFileTemplate : null"
           >
-            <ng-template #customFileTemplate let-item>
+            @if (useCustomFileTemplate()) {
+            <ng-template #fileTemplate let-item>
               <div class="ngx-tree-row-content custom-file-row" style="display: flex; align-items: center; width: 100%; border-left: 3px solid var(--pg-accent-blue); background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%); padding: 6px 12px; box-sizing: border-box; border-radius: 0 4px 4px 0;">
                 <!-- Offset expand button space (26px) so custom files align perfectly with folders -->
                 <div style="width: 26px; flex-shrink: 0;" aria-hidden="true"></div>
@@ -255,6 +255,7 @@
                 </button>
               </div>
             </ng-template>
+            }
           </ngx-powerful-tree>
         </div>
       </div>

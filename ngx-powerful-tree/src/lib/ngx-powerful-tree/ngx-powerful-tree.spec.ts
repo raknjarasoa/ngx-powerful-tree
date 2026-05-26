@@ -152,11 +152,10 @@ describe('NgxPowerfulTree', () => {
     expect(component.store.expandedItems().size).toBe(0);
   });
 
-  it('should accept custom fileTemplate input and resolve it via computed property', () => {
-    const dummyTemplate = {} as any; // mock TemplateRef
-    fixture.componentRef.setInput('fileTemplate', dummyTemplate);
-    fixture.detectChanges();
-    expect(component.fileTemplate()).toBe(dummyTemplate);
+  it('should expose contentChild fileTemplate via signal getter', () => {
+    // No projected #fileTemplate: signal resolves to undefined and the
+    // default template path is used in the view.
+    expect(component.fileTemplate()).toBeUndefined();
   });
 
   it('should run dragover events outside Angular Zone to optimize FPS and prevent change detection cycles', async () => {
