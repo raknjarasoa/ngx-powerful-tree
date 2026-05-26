@@ -1,4 +1,17 @@
-import { Directive, ElementRef, inject, input, output, computed, signal } from '@angular/core';
+import {
+  Directive,
+  ElementRef,
+  inject,
+  input,
+  output,
+  computed,
+  signal,
+  OnInit,
+  NgZone,
+  DestroyRef,
+  PLATFORM_ID,
+} from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { NgxTreeStore } from './ngx-tree.store';
 import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
 
@@ -27,16 +40,14 @@ import { DragPosition, NgxTreeProxyItem } from './ngx-tree.types';
     '[style.--ngx-tree-depth]': 'cssDepth()',
     '[class.ngx-tree-row--depth-0]': 'isDepth0()',
     '[attr.draggable]': 'isDraggable()',
-    '(dragstart)': 'onDragStart($event)',
-    '(dragover)': 'onDragOver($event)',
-    '(dragleave)': 'onDragLeave()',
-    '(drop)': 'onDrop($event)',
-    '(dragend)': 'onDragEnd()',
   },
 })
-export class NgxTreeRowDirective {
+export class NgxTreeRowDirective implements OnInit {
   private el = inject(ElementRef);
   private store = inject(NgxTreeStore);
+  private ngZone = inject(NgZone);
+  private destroyRef = inject(DestroyRef);
+  private platformId = inject(PLATFORM_ID);
   private hoverTimer: number | null = null;
 
   // Modern Signal Inputs
@@ -72,9 +83,39 @@ export class NgxTreeRowDirective {
   isDepth0 = computed(() => this.item().depth === 0);
   isDraggable = computed(() => !this.readOnly() && !this.locked() && !this.item().editing);
 
-  // --- HTML5 Native Drag & Drop Event Listeners ---
+  ngOnInit() {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+    this.ngZone.runOutsideAngular(() => {
+      const el = this.el.nativeElement;
 
-  onDragStart(event: DragEvent) {
+      const onDragStartBind = (e: DragEvent) => this.handleDragStart(e);
+      const onDragOverBind = (e: DragEvent) => this.handleDragOver(e);
+      const onDragLeaveBind = () => this.handleDragLeave();
+      const onDropBind = (e: DragEvent) => this.handleDrop(e);
+      const onDragEndBind = () => this.handleDragEnd();
+
+      el.addEventListener('dragstart', onDragStartBind);
+      el.addEventListener('dragover', onDragOverBind);
+      el.addEventListener('dragleave', onDragLeaveBind);
+      el.addEventListener('drop', onDropBind);
+      el.addEventListener('dragend', onDragEndBind);
+
+      this.destroyRef.onDestroy(() => {
+        el.removeEventListener('dragstart', onDragStartBind);
+        el.removeEventListener('dragover', onDragOverBind);
+        el.removeEventListener('dragleave', onDragLeaveBind);
+        el.removeEventListener('drop', onDropBind);
+        el.removeEventListener('dragend', onDragEndBind);
+        this.clearHoverTimer();
+      });
+    });
+  }
+
+  // --- HTML5 Native Drag & Drop Event Handlers (Outside Angular Zone for 60 FPS) ---
+
+  private handleDragStart(event: DragEvent) {
     if (this.readOnly() || this.locked() || this.item().editing) {
       event.preventDefault();
       return;
@@ -85,11 +126,13 @@ export class NgxTreeRowDirective {
       event.dataTransfer.setData('text/plain', this.item().id);
     }
 
-    // Set global store drag state
-    this.store.setDragState(this.item().id, null, null);
+    // Set global store drag state inside Angular Zone so UI reacts
+    this.ngZone.run(() => {
+      this.store.setDragState(this.item().id, null, null);
+    });
   }
 
-  onDragOver(event: DragEvent) {
+  private handleDragOver(event: DragEvent) {
     if (this.readOnly() || this.locked()) {
       return;
     }
@@ -113,7 +156,7 @@ export class NgxTreeRowDirective {
       // Folder allows inserting before, after, or dropping inside
       if (relativeY < height * 0.25) {
         position = 'before';
-      } else if (relativeY > height * 0.75) {
+      } else if (relativeY > height * 0.75 && !this.item().expanded) {
         position = 'after';
       } else {
         position = 'inside';
@@ -127,16 +170,37 @@ export class NgxTreeRowDirective {
       }
     }
 
-    // Only patch the store state if the target row or position has actually changed!
-    if (dragState.dragOverItemId !== this.item().id || dragState.position !== position) {
-      this.store.setDragState(draggedId, this.item().id, position);
+    // Modern Double Drop Zone Unification logic:
+    // If drop position is 'after', we map it to 'before' of the next visible sibling row
+    let targetId = this.item().id;
+    let finalPosition = position;
+
+    if (position === 'after') {
+      const list = this.store.flattenedVisibleItems();
+      const idx = list.findIndex((item) => item.id === this.item().id);
+      if (idx !== -1 && idx < list.length - 1) {
+        const nextItem = list[idx + 1];
+        if (nextItem.id !== draggedId) {
+          targetId = nextItem.id;
+          finalPosition = 'before';
+        }
+      }
+    }
+
+    // Only patch the store state inside the Zone if the target row or position has actually changed!
+    if (dragState.dragOverItemId !== targetId || dragState.position !== finalPosition) {
+      this.ngZone.run(() => {
+        this.store.setDragState(draggedId, targetId, finalPosition);
+      });
     }
 
     // Spring-loaded folder expansion: if dragging over a folder and position is inside, auto-expand it after 800ms
     if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
       if (!this.hoverTimer) {
         this.hoverTimer = window.setTimeout(() => {
-          this.store.setExpanded(this.item().id, true);
+          this.ngZone.run(() => {
+            this.store.setExpanded(this.item().id, true);
+          });
           this.hoverTimer = null;
         }, 800);
       }
@@ -145,18 +209,34 @@ export class NgxTreeRowDirective {
     }
   }
 
-  onDragLeave() {
+  private handleDragLeave() {
     if (this.readOnly() || this.locked()) {
       return;
     }
     this.clearHoverTimer();
     const dragState = this.store.dragState();
-    if (dragState.dragOverItemId === this.item().id) {
-      this.store.setDragState(dragState.draggedItemId, null, null);
+
+    let isTarget = dragState.dragOverItemId === this.item().id;
+    if (!isTarget) {
+      // Also check if we had mapped 'after' of this item to 'before' of the next item
+      const list = this.store.flattenedVisibleItems();
+      const idx = list.findIndex((item) => item.id === this.item().id);
+      if (idx !== -1 && idx < list.length - 1) {
+        const nextItem = list[idx + 1];
+        if (dragState.dragOverItemId === nextItem.id && dragState.position === 'before') {
+          isTarget = true;
+        }
+      }
+    }
+
+    if (isTarget) {
+      this.ngZone.run(() => {
+        this.store.setDragState(dragState.draggedItemId, null, null);
+      });
     }
   }
 
-  onDrop(event: DragEvent) {
+  private handleDrop(event: DragEvent) {
     if (this.readOnly() || this.locked()) {
       return;
     }
@@ -166,28 +246,37 @@ export class NgxTreeRowDirective {
     const dragState = this.store.dragState();
     const draggedId = dragState.draggedItemId;
     const position = dragState.position;
+    const dragOverItemId = dragState.dragOverItemId;
 
-    if (draggedId && draggedId !== this.item().id && position) {
-      // Perform the move in local state store
-      this.store.moveItem(draggedId, this.item().id, position);
+    if (draggedId && dragOverItemId && position && draggedId !== dragOverItemId) {
+      this.ngZone.run(() => {
+        // Perform the move in local state store
+        this.store.moveItem(draggedId, dragOverItemId, position);
 
-      // Emit event for consumer syncing
-      this.itemMoved.emit({
-        draggedId,
-        targetId: this.item().id,
-        position,
+        // Emit event for consumer syncing
+        this.itemMoved.emit({
+          draggedId,
+          targetId: dragOverItemId,
+          position,
+        });
+
+        this.store.clearDragState();
+      });
+    } else {
+      this.ngZone.run(() => {
+        this.store.clearDragState();
       });
     }
-
-    this.store.clearDragState();
   }
 
-  onDragEnd() {
+  private handleDragEnd() {
     if (this.readOnly() || this.locked()) {
       return;
     }
     this.clearHoverTimer();
-    this.store.clearDragState();
+    this.ngZone.run(() => {
+      this.store.clearDragState();
+    });
   }
 
   // --- Helper Methods ---

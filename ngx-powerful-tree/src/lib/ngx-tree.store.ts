@@ -207,6 +207,12 @@ export const NgxTreeStore = signalStore(
       },
 
       selectItem(id: string, multiSelect = false) {
+        const item = store.items()[id];
+        if (item && item.isFolder && !store.foldersOnly()) {
+          // Folder is not needed as selected, only file can be selected, but we still focus it
+          patchState(store, { focusedItemId: id });
+          return;
+        }
         const selected = new Set<string>(multiSelect ? store.selectedItems() : []);
         if (multiSelect && selected.has(id)) {
           selected.delete(id);
@@ -382,16 +388,11 @@ export const NgxTreeStore = signalStore(
           const target = currentItems[targetId];
           if (target && target.isFolder) {
             const children = target.children ? [...target.children] : [];
-            // If the folder is expanded, insert at the start (index 0). Otherwise, add to the end.
-            const isExpanded = store.expandedItems().has(targetId);
-            if (isExpanded) {
-              children.unshift(draggedId);
-            } else {
-              children.push(draggedId);
-            }
+            // Always insert at the start (index 0) of the folder's children
+            children.unshift(draggedId);
             currentItems[targetId] = { ...target, children };
 
-            // Expand parent target automatically
+            // Expand parent target automatically so the dropped item is visible
             const expanded = new Set(store.expandedItems());
             expanded.add(targetId);
             patchState(store, { expandedItems: expanded });
@@ -415,14 +416,9 @@ export const NgxTreeStore = signalStore(
           }
         }
 
-        // Deselect the dragged item when dropped
-        const selected = new Set(store.selectedItems());
-        selected.delete(draggedId);
-
         patchState(store, {
           items: currentItems,
           rootIds,
-          selectedItems: selected,
           focusedItemId: draggedId,
           dragState: {
             draggedItemId: null,

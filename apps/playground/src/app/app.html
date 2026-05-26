@@ -83,6 +83,17 @@
         </div>
 
         <div class="control-group toggle-group">
+          <span>Custom File Template</span>
+          <button
+            class="toggle-btn"
+            [class.enabled]="useCustomFileTemplate()"
+            (click)="useCustomFileTemplate.set(!useCustomFileTemplate())"
+          >
+            {{ useCustomFileTemplate() ? 'Custom (Enabled)' : 'Default' }}
+          </button>
+        </div>
+
+        <div class="control-group toggle-group">
           <span>Allow Rename</span>
           <button
             class="toggle-btn"
@@ -196,7 +207,54 @@
             (selectionChanged)="onSelectionChanged($event)"
             (focusedChanged)="onFocusedChanged($event)"
             (moveRequested)="onMoveRequested($event)"
+            [fileTemplate]="useCustomFileTemplate() ? customFileTemplate : null"
           >
+            <ng-template #customFileTemplate let-item>
+              <div class="ngx-tree-row-content custom-file-row" style="display: flex; align-items: center; width: 100%; border-left: 3px solid var(--pg-accent-blue); background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%); padding: 6px 12px; box-sizing: border-box; border-radius: 0 4px 4px 0;">
+                <!-- Offset expand button space (26px) so custom files align perfectly with folders -->
+                <div style="width: 26px; flex-shrink: 0;" aria-hidden="true"></div>
+
+                <span class="ngx-tree-item-icon" aria-hidden="true" style="color: var(--pg-accent-blue); margin-right: 8px;">
+                  <i class="fa-solid fa-file-shield" style="font-size: 1rem;"></i>
+                </span>
+                <span class="ngx-tree-item-name" style="flex-grow: 1; font-weight: 500; font-size: 0.92rem; color: var(--pg-accent-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  {{ item.name }}
+                </span>
+                <span class="custom-file-badge" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; background-color: var(--pg-accent-blue); color: #ffffff; padding: 2px 8px; border-radius: 9999px; flex-shrink: 0; line-height: 1;">
+                  Enterprise
+                </span>
+
+                <!-- Move to Folder Action Button -->
+                <button
+                  class="ngx-tree-action-btn"
+                  (click)="primaryTree.triggerMove(item.id, $event)"
+                  title="Move to Folder"
+                  tabindex="-1"
+                  style="
+                    margin-left: 8px;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--pg-accent-blue);
+                    padding: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 4px;
+                    transition: background-color 0.2s;
+                  "
+                  onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.15)'"
+                  onmouseout="this.style.backgroundColor='transparent'"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path
+                      fill="currentColor"
+                      d="M19 15l-1.41-1.41L13 18.17V4h-2v14.17l-4.59-4.58L5 15l7 7 7-7z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </ng-template>
           </ngx-powerful-tree>
         </div>
       </div>

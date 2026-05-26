@@ -1,8 +1,15 @@
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
-  HostListener,
+  NgZone,
+  PLATFORM_ID,
   TemplateRef,
+  computed,
   contentChild,
   effect,
   inject,
@@ -11,13 +18,10 @@ import {
   untracked,
   viewChild,
   viewChildren,
-  ChangeDetectionStrategy,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
-import { NgxTreeStore } from '../ngx-tree.store';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
-import { NgxTreeItem, NgxTreeProxyItem, DragPosition } from '../ngx-tree.types';
+import { NgxTreeStore } from '../ngx-tree.store';
+import { DragPosition, NgxTreeItem, NgxTreeProxyItem } from '../ngx-tree.types';
 
 @Component({
   selector: 'ngx-powerful-tree',
@@ -27,10 +31,16 @@ import { NgxTreeItem, NgxTreeProxyItem, DragPosition } from '../ngx-tree.types';
   templateUrl: './ngx-powerful-tree.html',
   styleUrl: './ngx-powerful-tree.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(keydown)': 'onKeyDown($event)',
+  },
 })
-export class NgxPowerfulTree {
+export class NgxPowerfulTree implements AfterViewInit {
   // Inject the local state store provided at the component level
   public store = inject(NgxTreeStore);
+  private ngZone = inject(NgZone);
+  private destroyRef = inject(DestroyRef);
+  private platformId = inject(PLATFORM_ID);
 
   // --- Modern Signal Inputs ---
   items = input.required<Record<string, NgxTreeItem>>();
@@ -62,7 +72,12 @@ export class NgxPowerfulTree {
   moveRequested = output<string>();
 
   // --- Signal-based View & Content Queries ---
-  itemTemplate = contentChild<TemplateRef<any>>('itemTemplate');
+  itemTemplate = contentChild<TemplateRef<unknown>>('itemTemplate');
+  // eslint-disable-next-line @angular-eslint/no-input-rename
+  fileTemplateInput = input<TemplateRef<unknown> | null>(null, { alias: 'fileTemplate' });
+  fileTemplateContent = contentChild<TemplateRef<unknown>>('fileTemplate');
+  fileTemplate = computed(() => this.fileTemplateInput() || this.fileTemplateContent() || null);
+
   viewport = viewChild<CdkVirtualScrollViewport>(CdkVirtualScrollViewport);
   editInputs = viewChildren<ElementRef<HTMLInputElement>>('editInput');
 
@@ -219,7 +234,6 @@ export class NgxPowerfulTree {
 
   // --- Keyboard Event Handler ---
 
-  @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
     const list = this.store.flattenedVisibleItems();
     if (list.length === 0) return;
@@ -367,6 +381,86 @@ export class NgxPowerfulTree {
       if (index < range.start || index >= range.end - 1) {
         vpt.scrollToIndex(index);
       }
+    }
+  }
+
+  // --- Smooth Auto-Scrolling during Drag-n-Drop outside Angular Zone ---
+  private scrollSpeed = 15; // Max pixels to scroll per frame
+  private animationFrameId: number | null = null;
+
+  ngAfterViewInit() {
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+    const vpt = this.viewport();
+    if (!vpt) return;
+
+    const viewportEl = vpt.elementRef.nativeElement;
+
+    this.ngZone.runOutsideAngular(() => {
+      const handleDragOver = (event: DragEvent) => {
+        const dragState = this.store.dragState();
+        if (!dragState.draggedItemId) {
+          this.stopAutoScroll();
+          return;
+        }
+
+        const rect = viewportEl.getBoundingClientRect();
+        const mouseY = event.clientY;
+
+        const topThreshold = rect.top + 40;
+        const bottomThreshold = rect.bottom - 40;
+
+        if (mouseY < topThreshold) {
+          // Near the top: scroll up
+          const intensity = Math.max(0, (topThreshold - mouseY) / 40); // 0 to 1
+          this.startAutoScroll(viewportEl, -1, intensity);
+        } else if (mouseY > bottomThreshold) {
+          // Near the bottom: scroll down
+          const intensity = Math.max(0, (mouseY - bottomThreshold) / 40); // 0 to 1
+          this.startAutoScroll(viewportEl, 1, intensity);
+        } else {
+          this.stopAutoScroll();
+        }
+      };
+
+      const handleDragLeaveOrEnd = () => {
+        this.stopAutoScroll();
+      };
+
+      viewportEl.addEventListener('dragover', handleDragOver);
+      viewportEl.addEventListener('dragleave', handleDragLeaveOrEnd);
+      viewportEl.addEventListener('drop', handleDragLeaveOrEnd);
+
+      // Also register on document to ensure cleanup
+      document.addEventListener('dragend', handleDragLeaveOrEnd);
+
+      this.destroyRef.onDestroy(() => {
+        viewportEl.removeEventListener('dragover', handleDragOver);
+        viewportEl.removeEventListener('dragleave', handleDragLeaveOrEnd);
+        viewportEl.removeEventListener('drop', handleDragLeaveOrEnd);
+        document.removeEventListener('dragend', handleDragLeaveOrEnd);
+        this.stopAutoScroll();
+      });
+    });
+  }
+
+  private startAutoScroll(element: HTMLElement, direction: number, intensity: number) {
+    this.stopAutoScroll();
+
+    const scrollFn = () => {
+      const amount = direction * this.scrollSpeed * intensity;
+      element.scrollTop += amount;
+      this.animationFrameId = requestAnimationFrame(scrollFn);
+    };
+
+    this.animationFrameId = requestAnimationFrame(scrollFn);
+  }
+
+  private stopAutoScroll() {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
   }
 }
