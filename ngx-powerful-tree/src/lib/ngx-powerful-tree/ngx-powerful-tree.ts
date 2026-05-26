@@ -72,6 +72,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   itemSize = input<number>(40); // Pixel height of a row for virtual scroll
   foldersOnly = input<boolean>(false);
   selectableTypes = input<SelectableTypes | null>(null);
+  searchDebounceMs = input<number>(120); // Debounce window for search input on large datasets
   readOnly = input<boolean>(false);
   folderIcon = input<string>(''); // Global folder icon CSS class (e.g. 'fa-solid fa-folder')
   fileIcon = input<string>(''); // Global file icon CSS class (e.g. 'fa-solid fa-file')
@@ -105,6 +106,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   editInputs = viewChildren<ElementRef<HTMLInputElement>>('editInput');
 
   private initialized = false;
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // 1. One-shot seed of the store from the inputs. Subsequent emissions are
@@ -120,12 +122,32 @@ export class NgxPowerfulTree implements AfterViewInit {
       });
     });
 
-    // 2. Sync search queries dynamically for real-time fluid searching
+    // 2. Sync search queries with a debounce so large datasets don't
+    // re-flatten on every keystroke. Clearing the field is applied immediately.
     effect(() => {
       const searchVal = this.searchQuery();
+      const debounceMs = untracked(() => this.searchDebounceMs());
       untracked(() => {
-        this.store.setSearchQuery(searchVal);
+        if (this.searchDebounceTimer !== null) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+        if (!searchVal || debounceMs <= 0) {
+          this.store.setSearchQuery(searchVal);
+          return;
+        }
+        this.searchDebounceTimer = setTimeout(() => {
+          this.searchDebounceTimer = null;
+          this.store.setSearchQuery(searchVal);
+        }, debounceMs);
       });
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.searchDebounceTimer !== null) {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = null;
+      }
     });
 
     // 3. Emit selections to consumer when membership changes

@@ -108,6 +108,7 @@ export const NgxTreeStore = signalStore(
         matchesSearch: boolean;
         locked: boolean;
         hasVisibleChildren: boolean;
+        expanded: boolean;
         name: string;
         icon: string | undefined;
         data: unknown;
@@ -152,6 +153,7 @@ export const NgxTreeStore = signalStore(
           matchesSearch: matches,
           locked: isLocked,
           hasVisibleChildren,
+          expanded: isExpanded,
           name: item.name,
           icon: item.icon,
           data: item.data,
