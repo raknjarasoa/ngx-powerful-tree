@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { NgxTreeStore } from './ngx-tree.store';
 import { NgxTreeItem } from './ngx-tree.types';
 
+type StoreInstance = InstanceType<typeof NgxTreeStore>;
+
 describe('NgxTreeStore', () => {
-  let store: any;
+  let store: StoreInstance;
 
   // Set up mock tree hierarchy:
   // Root A (Folder)
@@ -151,7 +153,7 @@ describe('NgxTreeStore', () => {
       children: [],
     };
     store.addItem('root-a', newChildFolder);
-    expect(store.items()['root-a'].children[0]).toBe('new-child-folder');
+    expect(store.items()['root-a'].children?.[0]).toBe('new-child-folder');
   });
 
   it('should drop inside an expanded folder and a collapsed folder at the first index', () => {
@@ -159,8 +161,8 @@ describe('NgxTreeStore', () => {
     store.setExpanded('child-a2', true); // Expand child-a2
     // child-a2 children initially has: ['grandchild-a2a']
     store.moveItem('root-b', 'child-a2', 'inside');
-    expect(store.items()['child-a2'].children[0]).toBe('root-b'); // Placed at first index
-    expect(store.items()['child-a2'].children[1]).toBe('grandchild-a2a');
+    expect(store.items()['child-a2'].children?.[0]).toBe('root-b'); // Placed at first index
+    expect(store.items()['child-a2'].children?.[1]).toBe('grandchild-a2a');
 
     // 2. Collapsed target folder
     store.setExpanded('root-a', false); // Collapse root-a
@@ -169,7 +171,7 @@ describe('NgxTreeStore', () => {
     store.setItems(mockItems, mockRootIds);
     store.moveItem('root-b', 'root-a', 'inside');
     const rootAChildren = store.items()['root-a'].children;
-    expect(rootAChildren[0]).toBe('root-b'); // Placed at the first index (index 0)
+    expect(rootAChildren?.[0]).toBe('root-b'); // Placed at the first index (index 0)
   });
 
   it('should preserve the selection state of the dragged file item when dropped', () => {
@@ -186,9 +188,74 @@ describe('NgxTreeStore', () => {
     expect(store.selectedItems().has('child-a2')).toBe(false); // Folder should not be selected
   });
 
-  it('should allow selecting folder items if foldersOnly is true', () => {
-    store.setFoldersOnly(true);
+  it('should allow selecting folder items when selectableTypes is "folders"', () => {
+    store.setSelectableTypes('folders');
     store.selectItem('child-a2');
-    expect(store.selectedItems().has('child-a2')).toBe(true); // Folder should be selected
+    expect(store.selectedItems().has('child-a2')).toBe(true);
+  });
+
+  it('should allow selecting both files and folders when selectableTypes is "all"', () => {
+    store.setSelectableTypes('all');
+    store.selectItem('child-a2');
+    store.selectItem('child-a1', true);
+    expect(store.selectedItems().has('child-a2')).toBe(true);
+    expect(store.selectedItems().has('child-a1')).toBe(true);
+  });
+
+  it('should refuse to delete a locked item and return false', () => {
+    const lockedItems: Record<string, NgxTreeItem> = {
+      'locked-root': {
+        id: 'locked-root',
+        name: 'Locked',
+        isFolder: true,
+        children: ['child'],
+        locked: true,
+      },
+      child: { id: 'child', name: 'Child', isFolder: false },
+    };
+    store.setItems(lockedItems, ['locked-root']);
+    expect(store.deleteItem('child')).toBe(false);
+    expect(store.items()['child']).toBeDefined();
+  });
+
+  it('should refuse to rename a locked item and return false', () => {
+    store.setItems(
+      {
+        'locked-file': { id: 'locked-file', name: 'Locked', isFolder: false, locked: true },
+      },
+      ['locked-file']
+    );
+    expect(store.renameItem('locked-file', 'NewName')).toBe(false);
+    expect(store.items()['locked-file'].name).toBe('Locked');
+  });
+
+  it('should refuse to move into a locked target and return false', () => {
+    store.setItems(
+      {
+        a: { id: 'a', name: 'A', isFolder: false },
+        b: { id: 'b', name: 'B', isFolder: true, children: [], locked: true },
+      },
+      ['a', 'b']
+    );
+    expect(store.moveItem('a', 'b', 'inside')).toBe(false);
+    expect(store.items()['b'].children).toEqual([]);
+  });
+
+  it('should refuse duplicate ids on addItem', () => {
+    expect(store.addItem(null, { id: 'root-a', name: 'Dup', isFolder: false } as NgxTreeItem)).toBe(
+      false
+    );
+  });
+
+  it('should reload() and clear ephemeral state', () => {
+    store.toggleExpand('root-a');
+    store.selectItem('child-a1');
+    store.setSearchQuery('something');
+    store.reload({ x: { id: 'x', name: 'X', isFolder: false } as NgxTreeItem }, ['x']);
+    expect(store.items()['x']).toBeDefined();
+    expect(store.items()['root-a']).toBeUndefined();
+    expect(store.expandedItems().size).toBe(0);
+    expect(store.selectedItems().size).toBe(0);
+    expect(store.searchQuery()).toBe('');
   });
 });

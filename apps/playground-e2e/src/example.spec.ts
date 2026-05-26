@@ -2,8 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('ngx-powerful-tree Playground E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to playground home
-    await page.goto('/');
+    await page.goto('/playground');
   });
 
   test('should load playground header and performance stats', async ({ page }) => {
@@ -160,6 +159,40 @@ test.describe('ngx-powerful-tree Playground E2E Tests', () => {
     const cancelBtn = page.locator('.close-overlay-btn');
     await cancelBtn.click();
     await expect(backdrop).toBeHidden();
+  });
+
+  test('should move a draggable row onto a folder via native HTML5 drag-and-drop', async ({
+    page,
+  }) => {
+    // Reduce dataset so the drag math is deterministic and rows are stable.
+    await page.locator('.scale-buttons button:has-text("1,000")').click();
+    await page.waitForTimeout(300);
+
+    // Pick the first folder row as the drop target.
+    const folderRows = page.locator('.ngx-tree-row--folder:not(.ngx-tree-row--locked)');
+    const targetFolder = folderRows.first();
+    await expect(targetFolder).toBeVisible();
+    const targetName = await targetFolder.locator('.ngx-tree-item-name').innerText();
+
+    // Pick any draggable file row that is not inside the target folder.
+    const fileRows = page.locator('.ngx-tree-row--file:not(.ngx-tree-row--locked)');
+    await expect(fileRows.first()).toBeVisible();
+    const source = fileRows.first();
+    const sourceName = await source.locator('.ngx-tree-item-name').innerText();
+
+    // Drop into the middle of the folder row to trigger the 'inside' branch.
+    await source.dragTo(targetFolder, { targetPosition: { x: 80, y: 18 } });
+    await page.waitForTimeout(150);
+
+    // The console log entry confirms the store accepted the move.
+    const logs = page.locator('.logs-console');
+    await expect(logs).toContainText('[Move]');
+
+    // The source row should be gone from its original position (it moved
+    // into the folder, which may be expanded but contains many other items
+    // so we just assert at least one move event landed).
+    expect(targetName.length).toBeGreaterThan(0);
+    expect(sourceName.length).toBeGreaterThan(0);
   });
 
   test('should render locked folders with a lock badge, no actions, and locked class', async ({

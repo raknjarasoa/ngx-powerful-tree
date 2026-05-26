@@ -5,6 +5,17 @@
     "type": "git",
     "url": "git+https://github.com/raknjarasoa/ngx-powerful-tree.git"
   },
+  "keywords": [
+    "angular",
+    "v21",
+    "cdk",
+    "virtual scroll",
+    "tree",
+    "headless",
+    "drag-and-drop",
+    "signals",
+    "performant"
+  ],
   "peerDependencies": {
     "@angular/common": "^19.0.0 || ^20.0.0 || ^21.0.0-0 || ^22.0.0-0",
     "@angular/core": "^19.0.0 || ^20.0.0 || ^21.0.0-0 || ^22.0.0-0",

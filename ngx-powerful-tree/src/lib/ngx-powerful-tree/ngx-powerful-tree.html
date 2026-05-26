@@ -1,7 +1,7 @@
 <div class="ngx-tree-container" tabindex="-1">
-  <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport">
+  <cdk-virtual-scroll-viewport [itemSize]="itemSize()" class="ngx-tree-viewport" role="tree">
     <div
-      *cdkVirtualFor="let item of store.flattenedVisibleItems(); trackBy: trackById; let idx = index"
+      *cdkVirtualFor="let item of store.flattenedStructure().list; trackBy: trackById; let idx = index"
       ngxTreeRow
       [item]="item"
       [readOnly]="readOnly()"
@@ -11,14 +11,12 @@
       [style.padding-left.rem]="item.depth * 1.25"
       class="ngx-tree-row-wrapper"
     >
-      <!-- Content Template Outlet -->
       <ng-container
         *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item, index: idx }"
       >
       </ng-container>
     </div>
 
-    <!-- Empty State -->
     @if (store.totalVisibleCount() === 0) {
     <div class="ngx-tree-empty-state">
       <svg
@@ -36,10 +34,8 @@
   </cdk-virtual-scroll-viewport>
 </div>
 
-<!-- Default Wireframe Template -->
 <ng-template #defaultTemplate let-item>
   <div class="ngx-tree-row-content">
-    <!-- Expand / Collapse Arrow -->
     @if (item.isFolder && item.hasVisibleChildren) {
     <button
       class="ngx-tree-arrow-btn"
@@ -59,10 +55,9 @@
     <div class="ngx-tree-arrow-placeholder"></div>
     }
 
-    <!-- Folder/File Icon -->
     <span class="ngx-tree-item-icon" aria-hidden="true">
-      @if (item.icon || (item.isFolder ? folderIcon() : fileIcon())) {
-      <i [class]="item.icon || (item.isFolder ? folderIcon() : fileIcon())"></i>
+      @if (item.icon) {
+      <i [class]="item.icon"></i>
       } @else { @if (item.isFolder) {
       <svg viewBox="0 0 24 24" width="20" height="20">
         <path
@@ -80,9 +75,8 @@
       } }
     </span>
 
-    <!-- Item Name / Edit Input -->
     <div class="ngx-tree-item-text">
-      @if (item.editing) {
+      @if (store.editingItemId() === item.id) {
       <input
         #editInput
         [value]="item.name"
@@ -93,11 +87,7 @@
         type="text"
       />
       } @else {
-      <span
-        class="ngx-tree-item-name"
-        [class.ngx-tree-item-name--matched]="item.matchesSearch"
-        [class.ngx-tree-item-name--truncate]="truncate()"
-      >
+      <span class="ngx-tree-item-name" [class.ngx-tree-item-name--matched]="item.matchesSearch">
         {{ item.name }}
       </span>
       @if (item.locked) {
@@ -111,10 +101,9 @@
       } }
     </div>
 
-    <!-- Inline Actions (Visible on Hover for wireframe demo controls) -->
-    @if (!item.locked && !readOnly()) {
+    @if (!item.locked && !readOnly()) { @let actions = resolvedActions();
     <div class="ngx-tree-row-actions">
-      @if (item.isFolder && allowAdd()) {
+      @if (item.isFolder && isActionEnabled(actions.add, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerAddFolder(item.id, $event)"
@@ -125,7 +114,7 @@
           <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
         </svg>
       </button>
-      } @if (allowMove()) {
+      } @if (isActionEnabled(actions.move, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerMove(item.id, $event)"
@@ -139,7 +128,7 @@
           />
         </svg>
       </button>
-      } @if (allowRename()) {
+      } @if (isActionEnabled(actions.rename, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerRename(item.id, $event)"
@@ -153,7 +142,7 @@
           />
         </svg>
       </button>
-      } @if (allowDelete()) {
+      } @if (isActionEnabled(actions.delete, item)) {
       <button
         class="ngx-tree-action-btn"
         (click)="triggerDelete(item.id, $event)"

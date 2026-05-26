@@ -14,8 +14,7 @@ describe('NgxPowerfulTree', () => {
 
     fixture = TestBed.createComponent(NgxPowerfulTree);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('items', {});
-    fixture.componentRef.setInput('rootIds', []);
+    fixture.componentRef.setInput('nodes', []);
     fixture.detectChanges();
     await fixture.whenStable();
   });
@@ -37,50 +36,40 @@ describe('NgxPowerfulTree', () => {
 
   it('should not allow triggering edit rename when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload([{ id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('folder-1');
-    const event = new KeyboardEvent('keydown', { key: 'F2' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'F2' }));
 
     fixture.detectChanges();
-    expect(component.store.editingItemId()).toBeNull(); // Should not enter editing state!
+    expect(component.store.editingItemId()).toBeNull();
   });
 
   it('should not allow deleting items when readOnly is true', async () => {
     fixture.componentRef.setInput('readOnly', true);
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload([{ id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('folder-1');
-    const event = new KeyboardEvent('keydown', { key: 'Delete' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
-    expect(component.store.items()['folder-1']).toBeDefined(); // Should not be deleted!
+    expect(component.store.items()['folder-1']).toBeDefined();
   });
 
   it('should propagate locked property from parent folder to children recursively', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-folder': {
+    component.reload([
+      {
         id: 'locked-folder',
         name: 'Locked Folder',
         isFolder: true,
-        children: ['child-file'],
         locked: true,
+        children: [{ id: 'child-file', name: 'Child File', isFolder: false }],
       },
-      'child-file': { id: 'child-file', name: 'Child File', isFolder: false },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-folder']);
+    ]);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -92,86 +81,98 @@ describe('NgxPowerfulTree', () => {
     const childNode = flattened.find((i) => i.id === 'child-file');
 
     expect(parentNode?.locked).toBe(true);
-    expect(childNode?.locked).toBe(true); // Propagated successfully!
+    expect(childNode?.locked).toBe(true);
   });
 
   it('should block renaming locked items via F2 keydown', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    component.reload([{ id: 'locked-file', name: 'Locked File', isFolder: false, locked: true }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('locked-file');
-    const event = new KeyboardEvent('keydown', { key: 'F2' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'F2' }));
 
     fixture.detectChanges();
-    expect(component.store.editingItemId()).toBeNull(); // Blocked!
+    expect(component.store.editingItemId()).toBeNull();
   });
 
   it('should block deleting locked items via Delete keydown', async () => {
-    fixture.componentRef.setInput('items', {
-      'locked-file': { id: 'locked-file', name: 'Locked File', isFolder: false, locked: true },
-    });
-    fixture.componentRef.setInput('rootIds', ['locked-file']);
+    component.reload([{ id: 'locked-file', name: 'Locked File', isFolder: false, locked: true }]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setFocusedItemId('locked-file');
-    const event = new KeyboardEvent('keydown', { key: 'Delete' });
-    component.onKeyDown(event);
+    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
-    expect(component.store.items()['locked-file']).toBeDefined(); // Blocked!
+    expect(component.store.items()['locked-file']).toBeDefined();
   });
 
-  it('should accept custom fileTemplate input and resolve it via computed property', () => {
-    const dummyTemplate = {} as any; // mock TemplateRef
-    fixture.componentRef.setInput('fileTemplate', dummyTemplate);
+  it('should expose a reload() method that swaps the dataset and clears state', async () => {
+    component.reload([
+      {
+        id: 'a',
+        name: 'A',
+        isFolder: true,
+        children: [{ id: 'b', name: 'B', isFolder: false }],
+      },
+    ]);
+    component.store.toggleExpand('a');
+    component.store.selectItem('b');
     fixture.detectChanges();
-    expect(component.fileTemplate()).toBe(dummyTemplate);
+    await fixture.whenStable();
+    expect(component.store.selectedItems().has('b')).toBe(true);
+
+    component.reload([{ id: 'c', name: 'C', isFolder: false }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.store.items()['a']).toBeUndefined();
+    expect(component.store.items()['c']).toBeDefined();
+    expect(component.store.selectedItems().size).toBe(0);
+    expect(component.store.expandedItems().size).toBe(0);
+  });
+
+  it('should expose contentChild fileTemplate via signal getter', () => {
+    expect(component.fileTemplate()).toBeUndefined();
   });
 
   it('should run dragover events outside Angular Zone to optimize FPS and prevent change detection cycles', async () => {
-    fixture.componentRef.setInput('items', {
-      'folder-1': { id: 'folder-1', name: 'Folder 1', isFolder: true, children: ['file-1'] },
-      'file-1': { id: 'file-1', name: 'File 1', isFolder: false },
-    });
-    fixture.componentRef.setInput('rootIds', ['folder-1']);
+    component.reload([
+      {
+        id: 'folder-1',
+        name: 'Folder 1',
+        isFolder: true,
+        children: [{ id: 'file-1', name: 'File 1', isFolder: false }],
+      },
+    ]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     component.store.setExpanded('folder-1', true);
     fixture.detectChanges();
 
-    // Set active dragged item in the store
     component.store.setDragState('file-1', null, null);
     fixture.detectChanges();
 
     const rowElements = fixture.nativeElement.querySelectorAll('.ngx-tree-row-wrapper');
     const folderRowEl = rowElements[0];
 
-    // Spy on NgZone.run to see when we enter the Angular Zone
     const ngZone = TestBed.inject(NgZone);
     const runSpy = vi.spyOn(ngZone, 'run');
 
-    // Helper to create mocked dragover event since DragEvent is not natively defined in the JSDOM test environment
     const createDragOverEvent = (clientY: number) => {
-      const event = new Event('dragover', { bubbles: true, cancelable: true }) as any;
+      const event = new Event('dragover', { bubbles: true, cancelable: true }) as Event & {
+        clientY: number;
+      };
       event.clientY = clientY;
       return event;
     };
 
-    // Trigger multiple dragover events that evaluate to the same target row & position
     folderRowEl.dispatchEvent(createDragOverEvent(10));
     folderRowEl.dispatchEvent(createDragOverEvent(11));
     folderRowEl.dispatchEvent(createDragOverEvent(12));
 
-    // Standard template bindings would trigger Angular change detection 3 times.
-    // Our optimized outside-zone listener should enter the zone at most once to transition state,
-    // and subsequent occurrences must skip NgZone.run() entirely!
+    // Bursts collapse into a single rAF tick; nothing has fired yet here.
     expect(runSpy.mock.calls.length).toBeLessThan(3);
   });
 });

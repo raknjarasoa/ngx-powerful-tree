@@ -1,0 +1,24 @@
+<section class="home-page">
+  <header class="home-header">
+    <h1>ngx-powerful-tree</h1>
+    <p>
+      A minimal demo: nested data, locked subtree, multi-level rows. Try keyboard navigation,
+      double-click to rename, drag rows to reorder.
+    </p>
+  </header>
+
+  <div class="home-grid">
+    <div class="home-tree-wrapper">
+      <ngx-powerful-tree [nodes]="nodes()" (selectionChanged)="onSelectionChanged($event)" />
+    </div>
+
+    <aside class="home-side">
+      <h2>Selection</h2>
+      <p class="selection-id">{{ selectedId() || '—' }}</p>
+      <p class="hint">
+        For the full showcase with 100k+ nodes, drag-and-drop benchmarks, overlay pickers and event
+        logs, head over to the <a routerLink="/playground">/playground</a> route.
+      </p>
+    </aside>
+  </div>
+</section>
