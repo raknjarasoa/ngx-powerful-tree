@@ -20,7 +20,7 @@
   --ngx-tree-border: var(--ngx-tree-container-border, #cbd5e1);
   --ngx-tree-border-radius: var(--ngx-tree-container-border-radius, 4px);
   --ngx-tree-font-family: var(--ngx-tree-font-stack, system-ui, -apple-system, sans-serif);
-  
+
   /* Sizing and Spacing custom variables */
   --ngx-tree-font-size: var(--ngx-tree-font-size-base, 0.95rem);
   --ngx-tree-row-padding: var(--ngx-tree-row-padding-base, 6px 12px);
@@ -202,7 +202,6 @@
   align-items: center;
   justify-content: center;
 }
-
 
 /* ==========================================================================
    PART 2: HEADLESS WIREFRAME AESTHETICS & THEME CUSTOMIZATION
