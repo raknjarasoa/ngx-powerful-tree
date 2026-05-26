@@ -86,10 +86,16 @@ snapshot — at 100k+ items that would dwarf the cost of the mutation itself.
 Each value can be a `boolean` or a per-row predicate
 `(item: NgxTreeProxyItem) => boolean`. **Omitted keys default to `true`.**
 
+```html
+<!-- Disable delete globally; keep add/rename/move -->
+<ngx-powerful-tree [nodes]="nodes()" [actions]="{ delete: false }" />
+
+<!-- Disable delete only for folders that still have children -->
+<ngx-powerful-tree [nodes]="nodes()" [actions]="{ delete: deleteWhenEmpty }" />
+```
+
 ```ts
-// Disable delete globally, keep add/rename/move
-[actions] = // Disable delete for folders that still have children
-'{ delete: false }'[actions] = '{ delete: (item) => !item.isFolder || item.children.length === 0 }';
+deleteWhenEmpty = (item: NgxTreeProxyItem) => !item.isFolder || item.children.length === 0;
 ```
 
 ### Truncate vs wrap
