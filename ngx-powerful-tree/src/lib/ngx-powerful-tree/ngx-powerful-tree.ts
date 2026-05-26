@@ -11,6 +11,7 @@ import {
   PLATFORM_ID,
   TemplateRef,
   afterNextRender,
+  computed,
   contentChild,
   effect,
   inject,
@@ -31,9 +32,40 @@ import {
 } from '../ngx-tree.types';
 import { flattenNodes } from '../ngx-tree.utils';
 
-// SSR-safe id generator. `crypto.randomUUID` exists in browsers and modern
-// Node, but not in older runtimes — fall back to a stronger random than the
-// deprecated Math.random/substr combo.
+/**
+ * Per-action enable resolver. `true`/`false` toggles every row; a function
+ * is called per row and receives the rendered NgxTreeProxyItem.
+ */
+export type NgxTreeActionResolver = boolean | ((item: NgxTreeProxyItem) => boolean);
+
+/**
+ * Inline-action availability. Each key defaults to `true` when omitted, so
+ * `[actions]="{ delete: false }"` keeps add/rename/move enabled.
+ */
+export interface NgxTreeActions {
+  add?: NgxTreeActionResolver;
+  rename?: NgxTreeActionResolver;
+  delete?: NgxTreeActionResolver;
+  move?: NgxTreeActionResolver;
+}
+
+const DEFAULT_ACTIONS: Required<NgxTreeActions> = {
+  add: true,
+  rename: true,
+  delete: true,
+  move: true,
+};
+
+export function isActionEnabled(
+  resolver: NgxTreeActionResolver | undefined,
+  item: NgxTreeProxyItem
+): boolean {
+  if (resolver === undefined) return true;
+  return typeof resolver === 'function' ? resolver(item) : resolver;
+}
+
+// SSR-safe id generator. crypto.randomUUID exists in browsers and modern
+// Node; fall back to a stronger random when missing.
 function generateNodeId(): string {
   const c: Crypto | undefined =
     typeof globalThis !== 'undefined' ? (globalThis as { crypto?: Crypto }).crypto : undefined;
@@ -61,33 +93,44 @@ function generateNodeId(): string {
   },
 })
 export class NgxPowerfulTree implements AfterViewInit {
-  // Inject the local state store provided at the component level
   public store = inject(NgxTreeStore);
   private ngZone = inject(NgZone);
   private destroyRef = inject(DestroyRef);
   private platformId = inject(PLATFORM_ID);
   private injector = inject(Injector);
 
-  // --- Modern Signal Inputs ---
-  // `nodes` seeds the tree on first emission. After that the store owns
-  // truth — use `reload(nodes)` to swap the dataset explicitly.
+  // --- Signal Inputs ---
+  // `nodes` seeds the tree on first emission; the store owns truth after that.
+  // Use `reload(nodes)` to swap the dataset explicitly.
   nodes = input.required<NgxTreeNode[]>();
   searchQuery = input<string>('');
   multiSelect = input<boolean>(false);
-  itemSize = input<number>(40); // Pixel height of a row for virtual scroll
-  foldersOnly = input<boolean>(false);
-  selectableTypes = input<SelectableTypes | null>(null);
-  searchDebounceMs = input<number>(120); // Debounce window for search input on large datasets
+  itemSize = input<number>(40);
+  selectableTypes = input<SelectableTypes>('files');
+  searchDebounceMs = input<number>(120);
   readOnly = input<boolean>(false);
-  folderIcon = input<string>(''); // Global folder icon CSS class (e.g. 'fa-solid fa-folder')
-  fileIcon = input<string>(''); // Global file icon CSS class (e.g. 'fa-solid fa-file')
-  truncate = input<boolean>(true); // Truncate text names with ellipsis by default
-  allowAdd = input<boolean>(true); // Allow child folders creation
-  allowRename = input<boolean>(true); // Allow node renaming
-  allowDelete = input<boolean>(true); // Allow node deletion
-  allowMove = input<boolean>(true); // Allow node relocation movement
+  /**
+   * Per-inline-action availability. Omitted keys default to `true`, so
+   * `[actions]="{ delete: false }"` keeps the other actions enabled.
+   * Each action accepts a boolean or a predicate fn that receives the row.
+   */
+  actions = input<NgxTreeActions>({});
 
-  // --- Outputs (Events) ---
+  /** Merged actions with defaults applied. Read by the template. */
+  resolvedActions = computed<Required<NgxTreeActions>>(() => {
+    const v = this.actions();
+    return {
+      add: v.add ?? DEFAULT_ACTIONS.add,
+      rename: v.rename ?? DEFAULT_ACTIONS.rename,
+      delete: v.delete ?? DEFAULT_ACTIONS.delete,
+      move: v.move ?? DEFAULT_ACTIONS.move,
+    };
+  });
+
+  /** Template helper: flatten boolean|fn resolver to a boolean per row. */
+  isActionEnabled = isActionEnabled;
+
+  // --- Outputs ---
   itemMoved = output<{
     draggedId: string;
     targetId: string;
@@ -100,11 +143,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   focusedChanged = output<string | null>();
   moveRequested = output<string>();
 
-  // --- Signal-based View & Content Queries ---
-  // Content-projected templates. Use `<ng-template #itemTemplate let-item>` to
-  // override every row, or `<ng-template #fileTemplate let-item>` to override
-  // only files. Both are looked up reactively, so wrapping them in `@if`
-  // blocks for conditional rendering is supported.
+  // --- Signal queries ---
   itemTemplate = contentChild<TemplateRef<unknown>>('itemTemplate');
   fileTemplate = contentChild<TemplateRef<unknown>>('fileTemplate');
 
@@ -115,9 +154,8 @@ export class NgxPowerfulTree implements AfterViewInit {
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // 1. One-shot seed of the store from the `nodes` input. Subsequent
-    // emissions are ignored on purpose — the store owns truth after init.
-    // Use `reload(nodes)` to swap the dataset explicitly.
+    // 1. One-shot seed from the `nodes` input. Subsequent emissions are
+    // ignored on purpose; use `reload(nodes)` to swap the dataset.
     effect(() => {
       const nodesVal = this.nodes();
       if (this.initialized) return;
@@ -128,8 +166,7 @@ export class NgxPowerfulTree implements AfterViewInit {
       });
     });
 
-    // 2. Sync search queries with a debounce so large datasets don't
-    // re-flatten on every keystroke. Clearing the field is applied immediately.
+    // 2. Debounced search sync. Clearing the field is applied immediately.
     effect(() => {
       const searchVal = this.searchQuery();
       const debounceMs = untracked(() => this.searchDebounceMs());
@@ -156,31 +193,23 @@ export class NgxPowerfulTree implements AfterViewInit {
       }
     });
 
-    // 3. Emit selections to consumer when membership changes
-    let lastSelectionKey = '';
+    // 3. Emit selection changes raw. Consumers dedupe if they need to.
     effect(() => {
-      const selectedSet = this.store.selectedItems();
-      const selected = Array.from(selectedSet).sort();
-      const key = selected.join('');
-      if (key === lastSelectionKey) return;
-      lastSelectionKey = key;
+      const selected = Array.from(this.store.selectedItems()).sort();
       untracked(() => {
         this.selectionChanged.emit(selected);
       });
     });
 
-    // 4. Emit focus changes to consumer when value actually changes
-    let lastFocused: string | null | undefined = undefined;
+    // 4. Emit focus changes raw. Consumers dedupe if they need to.
     effect(() => {
       const focused = this.store.focusedItemId();
-      if (focused === lastFocused) return;
-      lastFocused = focused;
       untracked(() => {
         this.focusedChanged.emit(focused);
       });
     });
 
-    // 5. Automatically focus and highlight the text field when renaming starts
+    // 5. Focus and select the inline rename input when editing starts.
     effect(() => {
       const inputs = this.editInputs();
       if (inputs.length > 0) {
@@ -192,27 +221,15 @@ export class NgxPowerfulTree implements AfterViewInit {
       }
     });
 
-    // 6. Sync foldersOnly visual filter (controls whether files are flattened)
+    // 6. Sync selectableTypes input to the store.
     effect(() => {
-      const foldersOnlyVal = this.foldersOnly();
+      const types = this.selectableTypes();
       untracked(() => {
-        this.store.setFoldersOnly(foldersOnlyVal);
-      });
-    });
-
-    // 7. Sync selectableTypes. When the consumer doesn't pass it, infer from
-    // foldersOnly so legacy usage keeps working (picker = folders selectable).
-    effect(() => {
-      const explicit = this.selectableTypes();
-      const foldersOnlyVal = this.foldersOnly();
-      const resolved: SelectableTypes = explicit ?? (foldersOnlyVal ? 'folders' : 'files');
-      untracked(() => {
-        this.store.setSelectableTypes(resolved);
+        this.store.setSelectableTypes(types);
       });
     });
   }
 
-  // TrackBy function to avoid unnecessary DOM element recreating
   trackById(index: number, item: NgxTreeProxyItem): string {
     return item.id;
   }
@@ -220,7 +237,6 @@ export class NgxPowerfulTree implements AfterViewInit {
   // --- Action Handlers ---
 
   onItemClick(item: NgxTreeProxyItem, event: MouseEvent) {
-    // If the click is on a button inside row, ignore selection click
     const target = event.target as HTMLElement;
     if (target.closest('button') || target.closest('input')) {
       return;
@@ -236,7 +252,6 @@ export class NgxPowerfulTree implements AfterViewInit {
   }
 
   onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
-    // Bubble up to consumer
     this.itemMoved.emit(event);
   }
 
@@ -281,14 +296,13 @@ export class NgxPowerfulTree implements AfterViewInit {
     this.createFolder(parentId);
   }
 
-  // Public component methods for programmatically adding folders at root
   public addRootFolder(name = 'New Root Folder') {
     this.createFolder(null, name);
   }
 
   /**
    * Reload the dataset. Clears expand/select/focus/search/drag state.
-   * Accepts the same nested {@link NgxTreeNode}[] shape as the `nodes` input.
+   * Accepts the same nested NgxTreeNode[] shape as the `nodes` input.
    */
   public reload(nodes: NgxTreeNode[]) {
     const { items, rootIds } = flattenNodes(nodes);
@@ -311,7 +325,6 @@ export class NgxPowerfulTree implements AfterViewInit {
       children: [],
     };
     this.itemAdded.emit({ parentId, node });
-    // Defer editing-state activation until the row is rendered by virtual scroll.
     afterNextRender(
       () => {
         this.store.setEditingItemId(newId);
@@ -320,7 +333,7 @@ export class NgxPowerfulTree implements AfterViewInit {
     );
   }
 
-  // --- Keyboard Event Handler ---
+  // --- Keyboard Handler ---
 
   onKeyDown(event: KeyboardEvent) {
     const list = this.store.flattenedVisibleItems();
@@ -329,7 +342,6 @@ export class NgxPowerfulTree implements AfterViewInit {
     const focusedId = this.store.focusedItemId();
     const focusedIdx = list.findIndex((item) => item.id === focusedId);
 
-    // If no item is focused, default to focusing the first visible item
     if (focusedIdx === -1) {
       this.store.setFocusedItemId(list[0].id);
       this.scrollToIndex(0);
@@ -338,10 +350,8 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     const currentItem = list[focusedIdx];
 
-    // If user is currently editing an item name, ignore hotkeys except Enter/Esc
     if (currentItem.editing) {
       if (event.key === 'Escape' || event.key === 'Enter') {
-        // Handled by the inline input fields
         return;
       }
       return;
@@ -372,7 +382,6 @@ export class NgxPowerfulTree implements AfterViewInit {
           if (!currentItem.expanded) {
             this.store.setExpanded(currentItem.id, true);
           } else if (focusedIdx < list.length - 1) {
-            // Focus first child
             const nextItem = list[focusedIdx + 1];
             if (nextItem.parentId === currentItem.id) {
               this.store.setFocusedItemId(nextItem.id);
@@ -387,7 +396,6 @@ export class NgxPowerfulTree implements AfterViewInit {
         if (currentItem.isFolder && currentItem.expanded) {
           this.store.setExpanded(currentItem.id, false);
         } else if (currentItem.parentId) {
-          // Focus parent
           const parentId = currentItem.parentId;
           const parentIdx = list.findIndex((item) => item.id === parentId);
           if (parentIdx !== -1) {
@@ -443,7 +451,7 @@ export class NgxPowerfulTree implements AfterViewInit {
         break;
 
       default:
-        // Wrap-around Typeahead search: jump focus to next item matching character pressed
+        // Wrap-around typeahead: jump focus to next item starting with key.
         if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
           const char = event.key.toLowerCase();
           for (let i = 1; i <= list.length; i++) {
@@ -459,20 +467,18 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
   }
 
-  // Helper method to scroll viewport index into focus view safely
   private scrollToIndex(index: number) {
     const vpt = this.viewport();
     if (vpt) {
       const range = vpt.getRenderedRange();
-      // Scroll only if out of rendered boundaries to avoid heavy redraws
       if (index < range.start || index >= range.end - 1) {
         vpt.scrollToIndex(index);
       }
     }
   }
 
-  // --- Smooth Auto-Scrolling during Drag-n-Drop outside Angular Zone ---
-  private scrollSpeed = 15; // Max pixels to scroll per frame
+  // --- Auto-scroll during drag-and-drop (runs outside Angular zone) ---
+  private scrollSpeed = 15;
   private animationFrameId: number | null = null;
 
   ngAfterViewInit() {
@@ -499,12 +505,10 @@ export class NgxPowerfulTree implements AfterViewInit {
         const bottomThreshold = rect.bottom - 40;
 
         if (mouseY < topThreshold) {
-          // Near the top: scroll up
-          const intensity = Math.max(0, (topThreshold - mouseY) / 40); // 0 to 1
+          const intensity = Math.max(0, (topThreshold - mouseY) / 40);
           this.startAutoScroll(viewportEl, -1, intensity);
         } else if (mouseY > bottomThreshold) {
-          // Near the bottom: scroll down
-          const intensity = Math.max(0, (mouseY - bottomThreshold) / 40); // 0 to 1
+          const intensity = Math.max(0, (mouseY - bottomThreshold) / 40);
           this.startAutoScroll(viewportEl, 1, intensity);
         } else {
           this.stopAutoScroll();
@@ -518,8 +522,6 @@ export class NgxPowerfulTree implements AfterViewInit {
       viewportEl.addEventListener('dragover', handleDragOver);
       viewportEl.addEventListener('dragleave', handleDragLeaveOrEnd);
       viewportEl.addEventListener('drop', handleDragLeaveOrEnd);
-
-      // Also register on document to ensure cleanup
       document.addEventListener('dragend', handleDragLeaveOrEnd);
 
       this.destroyRef.onDestroy(() => {

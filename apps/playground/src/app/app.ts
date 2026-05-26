@@ -10,7 +10,14 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { NgxPowerfulTree, NgxTreeNode, DragPosition, expandItems } from 'ngx-powerful-tree';
+import {
+  NgxPowerfulTree,
+  NgxTreeNode,
+  NgxTreeActions,
+  NgxTreeProxyItem,
+  DragPosition,
+  expandItems,
+} from 'ngx-powerful-tree';
 
 @Component({
   selector: 'app-root',
@@ -29,11 +36,19 @@ export class AppComponent implements OnInit, OnDestroy {
   pickerNodes = signal<NgxTreeNode[]>([]);
   searchQuery = signal<string>('');
   multiSelect = signal<boolean>(false);
-  useCustomIcons = signal<boolean>(true); // Enable FontAwesome custom icons by default
-  allowRename = signal<boolean>(true); // Dynamic user access control for renaming
-  allowDelete = signal<boolean>(true); // Dynamic user access control for deleting
-  truncateNames = signal<boolean>(true); // Dynamic control for name truncation
-  useCustomFileTemplate = signal<boolean>(false); // Enable premium file template demo
+  allowRename = signal<boolean>(true);
+  allowDelete = signal<boolean>(true);
+  truncateNames = signal<boolean>(true);
+  useCustomFileTemplate = signal<boolean>(false);
+
+  // Per-action availability. Omitted keys keep their defaults (`true`).
+  // `delete` uses a predicate: disable when a folder still has children.
+  primaryActions = computed<NgxTreeActions>(() => ({
+    rename: this.allowRename(),
+    delete: this.allowDelete()
+      ? (item: NgxTreeProxyItem) => !item.isFolder || item.children.length === 0
+      : false,
+  }));
 
   // Stats & States Signals
   totalItemCount = signal<number>(100000);

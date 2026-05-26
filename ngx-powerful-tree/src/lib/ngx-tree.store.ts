@@ -22,7 +22,6 @@ const initialState: NgxTreeState = {
     position: null,
   },
   selectableTypes: 'files',
-  foldersOnly: false,
 };
 
 const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableTypes): boolean => {
@@ -89,14 +88,15 @@ export const NgxTreeStore = signalStore(
       return { matchedIds, ancestorIds, isSearching: true };
     });
 
-    // Structural flat list — depends only on items/rootIds/expanded/search/foldersOnly.
+    // Structural flat list — depends only on items/rootIds/expanded/search/selectableTypes.
     // Row-state (focused/selected/editing/drag) is read separately in the directive so
     // a focus/selection change doesn't re-flatten the whole tree.
     const flattenedStructure = computed(() => {
       const items = store.items();
       const rootIds = store.rootIds();
       const expandedItems = store.expandedItems();
-      const foldersOnly = store.foldersOnly();
+      const selectableTypes = store.selectableTypes();
+      const foldersOnly = selectableTypes === 'folders'; // hide files in folder-only mode
       const { matchedIds, ancestorIds, isSearching } = searchIndex();
 
       const list: Array<{
@@ -330,11 +330,6 @@ export const NgxTreeStore = signalStore(
       setSelectableTypes(selectableTypes: SelectableTypes) {
         if (store.selectableTypes() === selectableTypes) return;
         patchState(store, { selectableTypes });
-      },
-
-      setFoldersOnly(foldersOnly: boolean) {
-        if (store.foldersOnly() === foldersOnly) return;
-        patchState(store, { foldersOnly });
       },
 
       renameItem(id: string, newName: string): boolean {

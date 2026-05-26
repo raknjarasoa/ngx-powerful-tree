@@ -70,5 +70,4 @@ export interface NgxTreeState<T = any> {
   searchQuery: string;
   dragState: DragState;
   selectableTypes: SelectableTypes;
-  foldersOnly: boolean;
 }

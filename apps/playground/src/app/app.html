@@ -1,5 +1,4 @@
 <div class="playground-layout">
-  <!-- Sleek Modern Branding Header -->
   <header class="playground-header">
     <div class="logo-area">
       <span class="logo-dot"></span>
@@ -11,7 +10,6 @@
   </header>
 
   <div class="playground-grid">
-    <!-- Left Column: Controls & Stats -->
     <aside class="playground-controls">
       <div class="control-card">
         <h2>Control Panel</h2>
@@ -57,17 +55,6 @@
           <span>Selection Mode</span>
           <button class="toggle-btn" [class.enabled]="multiSelect()" (click)="toggleMultiSelect()">
             {{ multiSelect() ? 'Multi-Select (Enabled)' : 'Single-Select' }}
-          </button>
-        </div>
-
-        <div class="control-group toggle-group">
-          <span>Custom Icons</span>
-          <button
-            class="toggle-btn"
-            [class.enabled]="useCustomIcons()"
-            (click)="useCustomIcons.set(!useCustomIcons())"
-          >
-            {{ useCustomIcons() ? 'FontAwesome (Enabled)' : 'Default SVGs' }}
           </button>
         </div>
 
@@ -122,7 +109,6 @@
         </div>
       </div>
 
-      <!-- Live Benchmarks Card -->
       <div class="control-card stats-card">
         <h2>Performance Metrics</h2>
         <div class="metric-row">
@@ -159,7 +145,6 @@
       </div>
     </aside>
 
-    <!-- Center Column: The Primary Tree Container -->
     <main class="playground-tree-container">
       <div class="tree-card">
         <div class="tree-card-header">
@@ -194,11 +179,8 @@
             [nodes]="treeNodes()"
             [searchQuery]="searchQuery()"
             [multiSelect]="multiSelect()"
-            [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
-            [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
-            [truncate]="truncateNames()"
-            [allowRename]="allowRename()"
-            [allowDelete]="allowDelete()"
+            [actions]="primaryActions()"
+            [class.ngx-tree-wrap]="!truncateNames()"
             (itemMoved)="onItemMoved($event)"
             (itemRenamed)="onItemRenamed($event)"
             (itemAdded)="onItemAdded($event)"
@@ -209,21 +191,60 @@
           >
             @if (useCustomFileTemplate()) {
             <ng-template #fileTemplate let-item>
-              <div class="ngx-tree-row-content custom-file-row" style="display: flex; align-items: center; width: 100%; border-left: 3px solid var(--pg-accent-blue); background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%); padding: 6px 12px; box-sizing: border-box; border-radius: 0 4px 4px 0;">
+              <div
+                class="ngx-tree-row-content custom-file-row"
+                style="
+                  display: flex;
+                  align-items: center;
+                  width: 100%;
+                  border-left: 3px solid var(--pg-accent-blue);
+                  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
+                  padding: 6px 12px;
+                  box-sizing: border-box;
+                  border-radius: 0 4px 4px 0;
+                "
+              >
                 <!-- Offset expand button space (26px) so custom files align perfectly with folders -->
-                <div style="width: 26px; flex-shrink: 0;" aria-hidden="true"></div>
+                <div style="width: 26px; flex-shrink: 0" aria-hidden="true"></div>
 
-                <span class="ngx-tree-item-icon" aria-hidden="true" style="color: var(--pg-accent-blue); margin-right: 8px;">
-                  <i class="fa-solid fa-file-shield" style="font-size: 1rem;"></i>
+                <span
+                  class="ngx-tree-item-icon"
+                  aria-hidden="true"
+                  style="color: var(--pg-accent-blue); margin-right: 8px"
+                >
+                  <i class="fa-solid fa-file-shield" style="font-size: 1rem"></i>
                 </span>
-                <span class="ngx-tree-item-name" style="flex-grow: 1; font-weight: 500; font-size: 0.92rem; color: var(--pg-accent-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <span
+                  class="ngx-tree-item-name"
+                  style="
+                    flex-grow: 1;
+                    font-weight: 500;
+                    font-size: 0.92rem;
+                    color: var(--pg-accent-blue);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                  "
+                >
                   {{ item.name }}
                 </span>
-                <span class="custom-file-badge" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; background-color: var(--pg-accent-blue); color: #ffffff; padding: 2px 8px; border-radius: 9999px; flex-shrink: 0; line-height: 1;">
+                <span
+                  class="custom-file-badge"
+                  style="
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    background-color: var(--pg-accent-blue);
+                    color: #ffffff;
+                    padding: 2px 8px;
+                    border-radius: 9999px;
+                    flex-shrink: 0;
+                    line-height: 1;
+                  "
+                >
                   Enterprise
                 </span>
 
-                <!-- Move to Folder Action Button -->
                 <button
                   class="ngx-tree-action-btn"
                   (click)="primaryTree.triggerMove(item.id, $event)"
@@ -260,7 +281,6 @@
       </div>
     </main>
 
-    <!-- Right Column: Real-time Event Logger Console -->
     <aside class="playground-logs">
       <div class="control-card logs-card">
         <div class="logs-header">
@@ -281,7 +301,6 @@
     </aside>
   </div>
 
-  <!-- Overlay/Dialog Presentation Demo -->
   @if (isOverlayOpen()) {
   <div class="overlay-backdrop" (click)="toggleOverlay()">
     <div class="overlay-modal" (click)="$event.stopPropagation()">
@@ -293,15 +312,12 @@
         <button class="close-overlay" (click)="toggleOverlay()">×</button>
       </header>
 
-      <!-- Nested tree instance in overlay with same dataset but independent state -->
       <div class="overlay-tree-wrapper">
         <ngx-powerful-tree
           [nodes]="treeNodes()"
           [searchQuery]="searchQuery()"
           [multiSelect]="false"
-          [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
-          [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
-          [truncate]="truncateNames()"
+          [class.ngx-tree-wrap]="!truncateNames()"
         >
         </ngx-powerful-tree>
       </div>
@@ -314,10 +330,7 @@
       </footer>
     </div>
   </div>
-  }
-
-  <!-- Move Overlay/Dialog Picker (Relocation Picker utilizing Deferrable Views) -->
-  @if (isMoveOverlayOpen()) { @defer (on immediate) {
+  } @if (isMoveOverlayOpen()) { @defer (on immediate) {
   <div class="overlay-backdrop" (click)="cancelMove()">
     <div class="overlay-modal" (click)="$event.stopPropagation()">
       <header class="overlay-modal-header">
@@ -344,12 +357,10 @@
       <div class="overlay-tree-wrapper">
         <ngx-powerful-tree
           [nodes]="pickerNodes()"
-          [foldersOnly]="true"
+          [selectableTypes]="'folders'"
           [readOnly]="true"
           [searchQuery]="overlaySearchQuery()"
           [multiSelect]="false"
-          [folderIcon]="useCustomIcons() ? 'fa-solid fa-folder' : ''"
-          [fileIcon]="useCustomIcons() ? 'fa-solid fa-file' : ''"
           (selectionChanged)="onDestinationSelected($event)"
         >
         </ngx-powerful-tree>

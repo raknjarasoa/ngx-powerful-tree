@@ -190,21 +190,25 @@
   gap: 4px;
 }
 
+/* Default: truncate with ellipsis. Add `.ngx-tree-wrap` on the host to allow
+   names to wrap onto multiple lines instead. */
 .ngx-tree-item-name {
   font-size: 0.95rem;
   min-width: 0;
   display: inline-block;
   max-width: 100%;
   vertical-align: middle;
-  white-space: normal; /* Allow name to wrap when truncate is false */
-  word-break: break-word; /* Handle wrapping of long names elegantly */
-  line-height: 1.25; /* Add space between lines when wrapping */
-}
-
-.ngx-tree-item-name--truncate {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+:host(.ngx-tree-wrap) .ngx-tree-item-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .ngx-tree-locked-badge {
