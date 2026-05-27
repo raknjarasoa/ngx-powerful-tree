@@ -22,6 +22,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { NgxTreeRowDirective } from '../ngx-tree-row.directive';
+import { NgxTreeDragPreviewDirective } from '../ngx-tree-drag-preview.directive';
 import { NgxTreeStore } from '../ngx-tree.store';
 import {
   DragPosition,
@@ -84,7 +85,7 @@ function generateNodeId(): string {
 @Component({
   selector: 'ngx-powerful-tree',
   standalone: true,
-  imports: [CommonModule, ScrollingModule, NgxTreeRowDirective],
+  imports: [CommonModule, ScrollingModule, NgxTreeRowDirective, NgxTreeDragPreviewDirective],
   providers: [NgxTreeStore],
   templateUrl: './ngx-powerful-tree.html',
   styleUrl: './ngx-powerful-tree.css',
@@ -148,6 +149,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   // --- Signal queries ---
   itemTemplate = contentChild<TemplateRef<unknown>>('itemTemplate');
   fileTemplate = contentChild<TemplateRef<unknown>>('fileTemplate');
+  dragPreviewTemplate = contentChild<TemplateRef<unknown>>('dragPreviewTemplate');
 
   viewport = viewChild<CdkVirtualScrollViewport>(CdkVirtualScrollViewport);
   editInputs = viewChildren<ElementRef<HTMLInputElement>>('editInput');

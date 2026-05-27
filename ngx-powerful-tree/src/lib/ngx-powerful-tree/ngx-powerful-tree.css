@@ -364,3 +364,23 @@
 .ngx-tree-row--locked .ngx-tree-item-name {
   font-style: italic;
 }
+
+/* Drag Preview (Ghost) Styles */
+.ngx-tree-drag-preview {
+  display: flex;
+  align-items: center;
+  background-color: var(--ngx-tree-bg);
+  border: 1px solid var(--ngx-tree-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: var(--ngx-tree-border-radius);
+  color: var(--ngx-tree-color);
+  font-family: var(--ngx-tree-font-family);
+  min-height: var(--ngx-tree-row-min-height);
+  padding: 0 12px;
+  opacity: 1 !important;
+  white-space: nowrap;
+}
+
+.ngx-tree-drag-preview .ngx-tree-row-actions {
+  display: none !important; /* Hide actions in ghost */
+}

@@ -10,6 +10,8 @@
       (click)="onItemClick(item, $event)"
       [style.padding-left.rem]="item.depth * 1.25"
       class="ngx-tree-row-wrapper"
+      [ngxTreeDragPreview]="dragPreviewTemplate() || defaultDragPreview"
+      [ngxTreeDragPreviewContext]="item"
     >
       <ng-container
         *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item, index: idx }"
@@ -159,5 +161,11 @@
       }
     </div>
     }
+  </div>
+</ng-template>
+
+<ng-template #defaultDragPreview let-item>
+  <div class="ngx-tree-drag-preview">
+    <ng-container *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item }"></ng-container>
   </div>
 </ng-template>
