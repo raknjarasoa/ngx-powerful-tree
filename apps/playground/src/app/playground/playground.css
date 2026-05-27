@@ -397,6 +397,8 @@ body {
   padding: 12px;
   box-sizing: border-box;
   overflow: hidden;
+  min-height: 400px;
+  max-height: 700px;
 }
 
 .tree-wrapper ngx-powerful-tree {
