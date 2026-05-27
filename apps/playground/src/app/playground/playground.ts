@@ -56,8 +56,6 @@ export class PlaygroundComponent {
   benchmarkDuration = signal<number>(0);
   selectedIds = signal<string[]>([]);
   focusedId = signal<string | null>(null);
-  isOverlayOpen = signal<boolean>(false);
-  logs = signal<string[]>([]);
   currentFps = signal<number>(60);
   private animFrameId: number | null = null;
 
@@ -112,7 +110,6 @@ export class PlaygroundComponent {
 
   // Generate 100k+ nodes on the fly and track loading time.
   loadMockTree(count: number) {
-    this.addLog(`Initializing generation of ${count} tree items...`);
     const start = performance.now();
 
     const lookup = new Map<string, NgxTreeNode>();
@@ -225,7 +222,6 @@ export class PlaygroundComponent {
     const end = performance.now();
     const duration = Math.round(end - start);
     this.benchmarkDuration.set(duration);
-    this.addLog(`Loaded ${count} nodes in ${duration}ms! Virtualization renders in real-time.`);
 
     // Pre-select item-80 and expand its ancestors once the tree has rendered.
     afterNextRender(() => {
@@ -239,34 +235,19 @@ export class PlaygroundComponent {
           tree.store.setExpanded(parentId, true);
           parentId = parentMap[parentId];
         }
-        this.addLog(
-          `[Selection Change] Pre-selected 'document_report_80.html' (item-80) and expanded ancestors.`
-        );
       }, 100);
     });
   }
 
   // --- Output listeners ---
 
-  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
-    this.addLog(`[Move] Node "${event.draggedId}" moved ${event.position} "${event.targetId}"`);
-  }
+  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {}
 
-  onItemRenamed(event: { id: string; name: string }) {
-    this.addLog(`[Rename] Node "${event.id}" renamed to "${event.name}"`);
-  }
+  onItemRenamed(event: { id: string; name: string }) {}
 
-  onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {
-    this.addLog(
-      `[Add] New Folder "${event.node.name}" (${event.node.id}) added into parent: ${
-        event.parentId || 'Root'
-      }`
-    );
-  }
+  onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {}
 
-  onItemDeleted(id: string) {
-    this.addLog(`[Delete] Node "${id}" deleted recursively.`);
-  }
+  onItemDeleted(id: string) {}
 
   onSelectionChanged(selected: string[]) {
     this.selectedIds.set(selected);
@@ -285,21 +266,11 @@ export class PlaygroundComponent {
 
   toggleMultiSelect() {
     this.multiSelect.update((v) => !v);
-    this.addLog(`[Config] Multi-Select toggled to: ${this.multiSelect()}`);
   }
 
   changeItemCount(count: number) {
     this.totalItemCount.set(count);
     this.loadMockTree(count);
-  }
-
-  toggleOverlay() {
-    this.isOverlayOpen.update((v) => !v);
-    this.addLog(`[Config] Overlay system toggled to: ${this.isOverlayOpen()}`);
-  }
-
-  clearLogs() {
-    this.logs.set([]);
   }
 
   // --- Relocation flow ---
@@ -312,7 +283,6 @@ export class PlaygroundComponent {
     this.targetFolderId.set(null);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(true);
-    this.addLog(`[Move Request] Started relocate workflow for item: ${id}`);
   }
 
   onDestinationSelected(selected: string[]) {
@@ -325,7 +295,6 @@ export class PlaygroundComponent {
     const tree = this.primaryTree();
     if (draggedId && targetId && tree) {
       tree.moveItem(draggedId, targetId, 'inside');
-      this.addLog(`[Relocate] Moved item "${draggedId}" into folder "${targetId}"`);
       this.cancelMove();
     }
   }
@@ -335,10 +304,5 @@ export class PlaygroundComponent {
     this.targetFolderId.set(null);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(false);
-  }
-
-  private addLog(message: string) {
-    const timestamp = new Date().toLocaleTimeString();
-    this.logs.update((l) => [`[${timestamp}] ${message}`, ...l.slice(0, 49)]);
   }
 }

@@ -50,6 +50,7 @@ export class NgxTreeRowDirective implements OnInit {
   private hoverTimer: number | null = null;
   private dragOverRafId: number | null = null;
   private dragOverPendingY: number | null = null;
+  private dragGhostEl: HTMLElement | null = null;
 
   item = input.required<NgxTreeStructuralItem>();
   readOnly = input<boolean>(false);
@@ -115,6 +116,7 @@ export class NgxTreeRowDirective implements OnInit {
         el.removeEventListener('dragend', onDragEndBind);
         this.clearHoverTimer();
         this.cancelDragOverRaf();
+        this.removeDragGhost();
       });
     });
   }
@@ -130,9 +132,30 @@ export class NgxTreeRowDirective implements OnInit {
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', this.item().id);
+
+      const sourceEl = this.el.nativeElement as HTMLElement;
+      const rect = sourceEl.getBoundingClientRect();
+      const ghost = sourceEl.cloneNode(true) as HTMLElement;
+      ghost.style.position = 'fixed';
+      ghost.style.top = '-9999px';
+      ghost.style.left = '-9999px';
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.opacity = '1';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.boxSizing = 'border-box';
+      ghost.style.background = 'var(--ngx-tree-bg, #ffffff)';
+      ghost.classList.remove(
+        'ngx-tree-row--dragging',
+        'ngx-tree-row--drag-over-before',
+        'ngx-tree-row--drag-over-after',
+        'ngx-tree-row--drag-over-inside'
+      );
+      document.body.appendChild(ghost);
+      this.dragGhostEl = ghost;
+
+      event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
     }
 
-    // Set global store drag state inside Angular Zone so UI reacts
     this.ngZone.run(() => {
       this.store.setDragState(this.item().id, null, null);
     });
@@ -278,6 +301,7 @@ export class NgxTreeRowDirective implements OnInit {
   private handleDragEnd() {
     this.clearHoverTimer();
     this.cancelDragOverRaf();
+    this.removeDragGhost();
     this.ngZone.run(() => {
       this.store.clearDragState();
     });
@@ -289,6 +313,13 @@ export class NgxTreeRowDirective implements OnInit {
     if (this.hoverTimer) {
       window.clearTimeout(this.hoverTimer);
       this.hoverTimer = null;
+    }
+  }
+
+  private removeDragGhost() {
+    if (this.dragGhostEl) {
+      this.dragGhostEl.remove();
+      this.dragGhostEl = null;
     }
   }
 }

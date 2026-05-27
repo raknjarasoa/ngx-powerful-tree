@@ -101,12 +101,6 @@
             {{ allowDelete() ? 'Allowed' : 'Disabled' }}
           </button>
         </div>
-
-        <div class="control-group">
-          <button class="action-btn-overlay" (click)="toggleOverlay()">
-            {{ isOverlayOpen() ? 'Close Overlay Tree' : 'Open Tree in Overlay/Dialog' }}
-          </button>
-        </div>
       </div>
 
       <div class="control-card stats-card">
@@ -280,57 +274,9 @@
         </div>
       </div>
     </main>
-
-    <aside class="playground-logs">
-      <div class="control-card logs-card">
-        <div class="logs-header">
-          <h2>Console Log Events</h2>
-          <button class="clear-logs-btn" (click)="clearLogs()">Clear</button>
-        </div>
-        <div class="logs-console">
-          @for (log of logs(); track $index) {
-          <div class="log-entry">{{ log }}</div>
-          } @empty {
-          <div class="logs-empty">
-            Waiting for interactions... Click, drag-n-drop, rename, delete or add nodes to view
-            events in real-time.
-          </div>
-          }
-        </div>
-      </div>
-    </aside>
   </div>
 
-  @if (isOverlayOpen()) {
-  <div class="overlay-backdrop" (click)="toggleOverlay()">
-    <div class="overlay-modal" (click)="$event.stopPropagation()">
-      <header class="overlay-modal-header">
-        <div>
-          <h3>Overlay Mounting Demo</h3>
-          <p>Tree rendering in a floating popover system</p>
-        </div>
-        <button class="close-overlay" (click)="toggleOverlay()">×</button>
-      </header>
-
-      <div class="overlay-tree-wrapper">
-        <ngx-powerful-tree
-          [nodes]="treeNodes()"
-          [searchQuery]="searchQuery()"
-          [multiSelect]="false"
-          [class.ngx-tree-wrap]="!truncateNames()"
-        >
-        </ngx-powerful-tree>
-      </div>
-
-      <footer class="overlay-modal-footer">
-        <p>
-          This floating tree instance uses the exact same 100k+ data registry but has its own
-          independent selection, focus, and expansion states.
-        </p>
-      </footer>
-    </div>
-  </div>
-  } @if (isMoveOverlayOpen()) { @defer (on immediate) {
+  @if (isMoveOverlayOpen()) { @defer (on immediate) {
   <div class="overlay-backdrop" (click)="cancelMove()">
     <div class="overlay-modal" (click)="$event.stopPropagation()">
       <header class="overlay-modal-header">
@@ -367,32 +313,8 @@
       </div>
 
       <footer class="overlay-modal-footer move-footer">
-        <button
-          class="outline-btn close-overlay-btn"
-          (click)="cancelMove()"
-          style="
-            border: 1px solid var(--ngx-tree-border);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            background: none;
-            color: inherit;
-          "
-        >
-          Cancel
-        </button>
-        <button
-          class="action-btn-overlay confirm-move-btn"
-          [disabled]="!targetFolderId()"
-          (click)="confirmMove()"
-          style="
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-          "
-        >
+        <button class="outline-btn" (click)="cancelMove()">Cancel</button>
+        <button class="action-btn-overlay" [disabled]="!targetFolderId()" (click)="confirmMove()">
           Confirm Move
         </button>
       </footer>
