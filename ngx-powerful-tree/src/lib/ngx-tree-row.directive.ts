@@ -237,8 +237,9 @@ export class NgxTreeRowDirective implements OnInit {
 
     // Flush any pending rAF so currentPosition is computed before reading it.
     if (this.dragOverPendingY !== null && draggedId) {
+      const pendingY = this.dragOverPendingY;
       this.cancelDragOverRaf();
-      this.processDragOver(this.dragOverPendingY, draggedId);
+      this.processDragOver(pendingY!, draggedId);
     } else {
       this.cancelDragOverRaf();
     }

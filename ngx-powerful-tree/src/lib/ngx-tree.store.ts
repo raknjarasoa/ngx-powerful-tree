@@ -415,6 +415,10 @@ export const NgxTreeStore = signalStore(
           store.editingItemId() && deletedIds.has(store.editingItemId()!)
             ? null
             : store.editingItemId();
+        const draggedItemId =
+          store.draggedItemId() && deletedIds.has(store.draggedItemId()!)
+            ? null
+            : store.draggedItemId();
 
         patchState(store, {
           items,
@@ -423,6 +427,7 @@ export const NgxTreeStore = signalStore(
           expandedItems: expanded,
           focusedItemId,
           editingItemId,
+          draggedItemId,
         });
         return true;
       },
