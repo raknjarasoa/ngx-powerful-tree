@@ -402,6 +402,8 @@ body {
 
 .tree-wrapper ngx-powerful-tree {
   /* Demonstrate headless design overrides - customize to match playground container theme */
+  display: block;
+  height: 100%;
   --ngx-tree-background: var(--pg-surface);
   --ngx-tree-text-color: var(--pg-color);
   --ngx-tree-selection-bg: var(--pg-accent-blue);
@@ -417,16 +419,16 @@ body {
 }
 
 /* Force selected items to use white text for visibility */
-::ng-deep .ngx-tree-row.selected {
+::ng-deep .ngx-tree-row--selected {
   color: #ffffff !important;
 }
 
-::ng-deep .ngx-tree-row.selected .ngx-tree-item-name {
+::ng-deep .ngx-tree-row--selected .ngx-tree-item-name {
   color: #ffffff !important;
 }
 
-::ng-deep .ngx-tree-row.selected .ngx-tree-action-btn,
-::ng-deep .ngx-tree-row.selected .ngx-tree-item-icon {
+::ng-deep .ngx-tree-row--selected .ngx-tree-action-btn,
+::ng-deep .ngx-tree-row--selected .ngx-tree-item-icon {
   color: #ffffff !important;
 }
 

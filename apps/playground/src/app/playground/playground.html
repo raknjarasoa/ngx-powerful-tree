@@ -276,8 +276,8 @@
     </main>
   </div>
 
-  @if (isMoveOverlayOpen()) { @defer (on immediate) {
-  <div class="overlay-backdrop" (click)="cancelMove()">
+  @defer (when isMoveOverlayOpen()) {
+  <div class="overlay-backdrop" (click)="cancelMove()" [style.display]="isMoveOverlayOpen() ? 'flex' : 'none'">
     <div class="overlay-modal" (click)="$event.stopPropagation()">
       <header class="overlay-modal-header">
         <div>
@@ -320,21 +320,5 @@
       </footer>
     </div>
   </div>
-  } @placeholder {
-  <div
-    class="overlay-loading-placeholder"
-    style="
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      color: white;
-    "
-  >
-    Loading relocation portal...
-  </div>
-  } }
+  }
 </div>
