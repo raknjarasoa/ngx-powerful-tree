@@ -48,6 +48,7 @@ export default [
   },
   {
     files: ['**/*.json'],
+    ignores: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [
         'error',

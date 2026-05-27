@@ -73,9 +73,15 @@ export class NgxTreeRowDirective implements OnInit {
   isLocked = computed(() => this.locked());
   isDragging = computed(() => this.store.draggedItemId() === this.item().id);
 
-  isDragOverInside = computed(() => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'inside');
-  isDragOverBefore = computed(() => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'before');
-  isDragOverAfter = computed(() => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'after');
+  isDragOverInside = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'inside'
+  );
+  isDragOverBefore = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'before'
+  );
+  isDragOverAfter = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'after'
+  );
 
   cssDepth = computed(() => this.item().depth);
   isDepth0 = computed(() => this.item().depth === 0);
@@ -137,17 +143,17 @@ export class NgxTreeRowDirective implements OnInit {
     }
 
     this.ngZone.run(() => {
-        this.store.draggedItemId.set(this.item().id);
+      this.store.draggedItemId.set(this.item().id);
     });
 
     // We must bind dragend here so that if the element is recycled by virtual scroll,
     // the event target will still capture the dragend event natively.
     const onDragEnd = () => {
-        this.ngZone.run(() => {
-            this.store.clearDragState();
-        });
-        this.removeDragGhost();
-        sourceEl.removeEventListener('dragend', onDragEnd);
+      this.ngZone.run(() => {
+        this.store.clearDragState();
+      });
+      this.removeDragGhost();
+      sourceEl.removeEventListener('dragend', onDragEnd);
     };
     const sourceEl = this.el.nativeElement as HTMLElement;
     sourceEl.addEventListener('dragend', onDragEnd);

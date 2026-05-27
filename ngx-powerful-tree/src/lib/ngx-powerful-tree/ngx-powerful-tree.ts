@@ -514,10 +514,10 @@ export class NgxPowerfulTree implements AfterViewInit {
         this.lastDragMouseY = event.clientY;
 
         if (this.dragRafId === null) {
-            this.dragRafId = requestAnimationFrame(() => {
-                this.dragRafId = null;
-                this.evaluateDragPosition();
-            });
+          this.dragRafId = requestAnimationFrame(() => {
+            this.dragRafId = null;
+            this.evaluateDragPosition();
+          });
         }
 
         const rect = viewportEl.getBoundingClientRect();
@@ -539,14 +539,14 @@ export class NgxPowerfulTree implements AfterViewInit {
         // Only clear drag over if we leave the viewport itself, not a child row
         const rect = viewportEl.getBoundingClientRect();
         if (
-            event.clientX <= rect.left ||
-            event.clientX >= rect.right ||
-            event.clientY <= rect.top ||
-            event.clientY >= rect.bottom
+          event.clientX <= rect.left ||
+          event.clientX >= rect.right ||
+          event.clientY <= rect.top ||
+          event.clientY >= rect.bottom
         ) {
-            this.ngZone.run(() => {
-                this.store.setDragState(this.store.draggedItemId(), null, null);
-            });
+          this.ngZone.run(() => {
+            this.store.setDragState(this.store.draggedItemId(), null, null);
+          });
         }
       };
 
@@ -564,16 +564,16 @@ export class NgxPowerfulTree implements AfterViewInit {
         const position = this.store.dragPosition();
 
         if (draggedId && targetId && position && draggedId !== targetId) {
-            this.ngZone.run(() => {
-                if (this.store.moveItem(draggedId, targetId, position)) {
-                    this.itemMoved.emit({ draggedId, targetId, position });
-                }
-                this.store.clearDragState();
-            });
+          this.ngZone.run(() => {
+            if (this.store.moveItem(draggedId, targetId, position)) {
+              this.itemMoved.emit({ draggedId, targetId, position });
+            }
+            this.store.clearDragState();
+          });
         } else {
-            this.ngZone.run(() => {
-                this.store.clearDragState();
-            });
+          this.ngZone.run(() => {
+            this.store.clearDragState();
+          });
         }
 
         this.lastDragMouseY = null;
@@ -601,58 +601,58 @@ export class NgxPowerfulTree implements AfterViewInit {
   }
 
   private evaluateDragPosition() {
-      if (this.lastDragMouseY === null) return;
-      const vpt = this.viewport();
-      if (!vpt) return;
+    if (this.lastDragMouseY === null) return;
+    const vpt = this.viewport();
+    if (!vpt) return;
 
-      const viewportEl = vpt.elementRef.nativeElement;
-      const draggedId = this.store.draggedItemId();
-      if (!draggedId) return;
+    const viewportEl = vpt.elementRef.nativeElement;
+    const draggedId = this.store.draggedItemId();
+    if (!draggedId) return;
 
-      const rect = viewportEl.getBoundingClientRect();
-      // Calculate absolute scroll offset from top
-      const scrollTop = viewportEl.scrollTop;
-      const relativeYToViewport = this.lastDragMouseY - rect.top;
-      const absoluteY = scrollTop + relativeYToViewport;
+    const rect = viewportEl.getBoundingClientRect();
+    // Calculate absolute scroll offset from top
+    const scrollTop = viewportEl.scrollTop;
+    const relativeYToViewport = this.lastDragMouseY - rect.top;
+    const absoluteY = scrollTop + relativeYToViewport;
 
-      const itemSize = this.itemSize();
-      const itemIndex = Math.floor(absoluteY / itemSize);
+    const itemSize = this.itemSize();
+    const itemIndex = Math.floor(absoluteY / itemSize);
 
-      const { list } = this.store.flattenedStructure();
-      if (itemIndex < 0 || itemIndex >= list.length) {
-          if (this.store.dragTargetId() !== null) {
-              this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
-          }
-          return;
+    const { list } = this.store.flattenedStructure();
+    if (itemIndex < 0 || itemIndex >= list.length) {
+      if (this.store.dragTargetId() !== null) {
+        this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
       }
+      return;
+    }
 
-      const targetItem = list[itemIndex];
-      const targetId = targetItem.id;
+    const targetItem = list[itemIndex];
+    const targetId = targetItem.id;
 
-      if (targetId === draggedId || targetItem.locked) {
-          if (this.store.dragTargetId() !== null) {
-              this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
-          }
-          return;
+    if (targetId === draggedId || targetItem.locked) {
+      if (this.store.dragTargetId() !== null) {
+        this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
       }
+      return;
+    }
 
-      const relativeYToRow = absoluteY % itemSize;
-      let position: DragPosition = 'inside';
+    const relativeYToRow = absoluteY % itemSize;
+    let position: DragPosition = 'inside';
 
-      if (targetItem.isFolder) {
-        if (relativeYToRow < itemSize * 0.25) position = 'before';
-        else if (relativeYToRow > itemSize * 0.75 && !targetItem.expanded) position = 'after';
-        else position = 'inside';
-      } else {
-        position = relativeYToRow < itemSize * 0.5 ? 'before' : 'after';
-      }
+    if (targetItem.isFolder) {
+      if (relativeYToRow < itemSize * 0.25) position = 'before';
+      else if (relativeYToRow > itemSize * 0.75 && !targetItem.expanded) position = 'after';
+      else position = 'inside';
+    } else {
+      position = relativeYToRow < itemSize * 0.5 ? 'before' : 'after';
+    }
 
-      // Avoid redundant signals updates
-      if (this.store.dragTargetId() !== targetId || this.store.dragPosition() !== position) {
-          this.ngZone.run(() => {
-              this.store.setDragState(draggedId, targetId, position);
-          });
-      }
+    // Avoid redundant signals updates
+    if (this.store.dragTargetId() !== targetId || this.store.dragPosition() !== position) {
+      this.ngZone.run(() => {
+        this.store.setDragState(draggedId, targetId, position);
+      });
+    }
   }
 
   private startAutoScroll(element: HTMLElement, direction: number, intensity: number) {

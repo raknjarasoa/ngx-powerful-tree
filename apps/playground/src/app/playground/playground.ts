@@ -240,13 +240,21 @@ export class PlaygroundComponent {
 
   // --- Output listeners ---
 
-  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {}
+  onItemMoved(event: { draggedId: string; targetId: string; position: DragPosition }) {
+    console.log('Moved:', event);
+  }
 
-  onItemRenamed(event: { id: string; name: string }) {}
+  onItemRenamed(event: { id: string; name: string }) {
+    console.log('Renamed:', event);
+  }
 
-  onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {}
+  onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {
+    console.log('Added:', event);
+  }
 
-  onItemDeleted(id: string) {}
+  onItemDeleted(id: string) {
+    console.log('Deleted:', id);
+  }
 
   onSelectionChanged(selected: string[]) {
     this.selectedIds.set(selected);

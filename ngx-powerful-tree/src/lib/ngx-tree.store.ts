@@ -321,7 +321,11 @@ export class NgxTreeStore {
     return true;
   }
 
-  setDragState(draggedId: string | null, targetId: string | null = null, position: DragPosition | null = null) {
+  setDragState(
+    draggedId: string | null,
+    targetId: string | null = null,
+    position: DragPosition | null = null
+  ) {
     this.draggedItemId.set(draggedId);
     this.dragTargetId.set(targetId);
     this.dragPosition.set(position);
@@ -388,8 +392,8 @@ export class NgxTreeStore {
     if (dragged && deletedIds.has(dragged)) this.clearDragState();
     const target = this.dragTargetId();
     if (target && deletedIds.has(target)) {
-        this.dragTargetId.set(null);
-        this.dragPosition.set(null);
+      this.dragTargetId.set(null);
+      this.dragPosition.set(null);
     }
 
     this.version.update((v) => v + 1);
