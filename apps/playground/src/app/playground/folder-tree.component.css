@@ -1,0 +1,489 @@
+/* Popover Content & Tree Panel */
+.popover-tree-container {
+  position: relative; /* required for inline absolute overlay positioning */
+  width: 600px; /* Updated width */
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 16px;
+  background: #ffffff;
+}
+
+/* Top bar row in popover */
+.top-bar-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.search-wrapper {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 36px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+  background: #f8fafc;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.clear-search {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.clear-search:hover {
+  color: #64748b;
+}
+
+.new-folder-btn {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.new-folder-btn:hover {
+  background: rgba(99, 102, 241, 0.06);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Tree Scroll Area */
+.tree-scroll-container {
+  min-height: 400px;
+  height: 400px;
+  flex-grow: 1;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fafafb;
+  box-sizing: border-box;
+}
+
+/* Style the primary tree using CSS custom variables naturally, completely avoiding ::ng-deep! */
+.tree-scroll-container ngx-powerful-tree {
+  display: block;
+  height: 100%;
+  --ngx-tree-min-height: 400px;
+}
+
+/* Custom File Template Styles */
+.custom-file-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 12px 6px 0;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+  cursor: pointer; /* make row visually clickable */
+}
+
+.custom-file-row:hover {
+  background-color: rgba(99, 102, 241, 0.05); /* Highlight whole row on hover */
+}
+
+.expand-spacer {
+  width: 26px;
+  flex-shrink: 0;
+}
+
+.file-icon-wrapper {
+  color: #6366f1;
+  font-size: 1rem;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0; /* allows text truncation */
+  gap: 2px;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-name--matched {
+  background-color: rgba(253, 224, 71, 0.4);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.file-description {
+  font-size: 0.72rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.custom-file-row:hover .file-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  color: #64748b;
+}
+
+.move-btn:hover {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+}
+
+/* Deferrable Move Overlay backdrop - Integrated inline inside tree popover container */
+.overlay-backdrop {
+  position: absolute; /* inline absolute positioning */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+/* Relocation Dialog Modal Integrated */
+.overlay-modal {
+  width: 100%;
+  max-height: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow:
+    0 15px 30px -5px rgba(0, 0, 0, 0.15),
+    0 10px 15px -5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  animation: slideInUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.overlay-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-details h3 {
+  margin: 0 0 2px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.header-details p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.moving-item-name {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.close-overlay {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.close-overlay:hover {
+  color: #475569;
+}
+
+.overlay-search-group {
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.overlay-tree-wrapper {
+  padding: 8px 20px;
+  flex-grow: 1;
+  min-height: 200px;
+  height: 250px; /* solid height for the virtual viewport of the picker */
+  overflow: hidden; /* Prevent double scrollbar! */
+  background: #fafafb;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+}
+
+.overlay-tree-wrapper ngx-powerful-tree {
+  display: block;
+  height: 100%;
+  --ngx-tree-min-height: 200px;
+}
+
+.overlay-modal-footer {
+  padding: 12px 20px;
+  display: flex;
+  justify-content: flex-end;
+  background: #ffffff;
+}
+
+.cancel-btn {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-btn:hover {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #94a3b8;
+}
+
+/* Move to Root level styles */
+.overlay-root-action-bar {
+  padding: 10px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.move-to-root-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px -2px rgba(16, 185, 129, 0.3);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.move-to-root-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -2px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.move-to-root-btn:active {
+  transform: translateY(0);
+}
+
+/* Dark mode preferences support */
+@media (prefers-color-scheme: dark) {
+  .popover-tree-container {
+    background: #1e293b;
+  }
+
+  .search-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .search-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  }
+
+  .new-folder-btn {
+    background: #0f172a;
+    color: #94a3b8;
+    border-color: #334155;
+  }
+
+  .new-folder-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .tree-scroll-container {
+    background: #0f172a;
+    border-color: #334155;
+  }
+
+  .custom-file-row {
+    color: #cbd5e1;
+  }
+
+  .custom-file-row:hover {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+
+  .file-name {
+    color: #e2e8f0;
+  }
+
+  .file-description {
+    color: #94a3b8;
+  }
+
+  .action-btn {
+    color: #94a3b8;
+  }
+
+  .move-btn:hover {
+    background-color: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+  }
+
+  .overlay-modal {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .overlay-modal-header {
+    border-color: #334155;
+  }
+
+  .header-details h3 {
+    color: #f8fafc;
+  }
+
+  .header-details p {
+    color: #94a3b8;
+  }
+
+  .moving-item-name {
+    color: #818cf8;
+  }
+
+  .overlay-search-group {
+    background: #131d31;
+    border-color: #334155;
+  }
+
+  .overlay-tree-wrapper {
+    background: #0f172a;
+    border-color: #334155;
+  }
+
+  .overlay-root-action-bar {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .overlay-modal-footer {
+    background: #1e293b;
+  }
+
+  .cancel-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border-color: #475569;
+  }
+
+  .cancel-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+    border-color: #64748b;
+  }
+}

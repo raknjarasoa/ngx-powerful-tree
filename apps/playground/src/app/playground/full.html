@@ -1,0 +1,57 @@
+<div class="playground-layout">
+  <header class="playground-header">
+    <div class="logo-area">
+      <span class="logo-dot"></span>
+      <h1>ngx-powerful-tree <span class="badge">v21.2.0 - Premium</span></h1>
+    </div>
+    <p class="tagline">
+      Premium showcase with PrimeNG Popover containing a 1k-item directory tree with lock
+      constraints and immediate relocations.
+    </p>
+  </header>
+
+  <!-- Premium control actions row with selection details and dropdown selector -->
+  <div class="control-actions-row">
+    <!-- Trigger Button for PrimeNG Popover -->
+    <button
+      #btn
+      class="trigger-popover-btn"
+      (click)="op.toggle($event, btn)"
+      aria-label="Open directory tree popover"
+    >
+      <i class="fas fa-folder-open"></i> Browse Active Directory
+    </button>
+
+    <!-- Visual selection state indicator -->
+    @if (selectedFileName()) {
+    <div class="selected-file-badge">
+      <i class="fas fa-file-alt"></i> Selected: <strong>{{ selectedFileName() }}</strong>
+    </div>
+    } @else {
+    <div class="selected-file-badge none">No file selected</div>
+    }
+
+    <!-- Initial pre-selected file selector dropdown -->
+    <div class="initial-select-wrapper">
+      <label for="initial-file-select" class="dropdown-label">Initial Selected File:</label>
+      <select id="initial-file-select" (change)="onInitialFileChange($event)" class="file-dropdown">
+        <option value="">-- None --</option>
+        <option value="user-alice-file-0">Alice's tax_statement.pdf</option>
+        <option value="user-bob-file-0">Bob's reggae_chords.docx</option>
+        <option value="user-charlie-file-0">Charlie's silent_movie_script.pdf</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- PrimeNG Popover container containing the dedicated FolderTree component, appended to body for SSR/overlay rendering -->
+  <p-popover #op [appendTo]="'body'" (onShow)="onPopoverShow()">
+    <ng-template pTemplate="content">
+      <app-folder-tree
+        [initialSelectedFileId]="initialSelectedFileId()"
+        [customTreeNodes]="treeNodesForPopover()"
+        (fileSelected)="onFileSelected($event, op)"
+      >
+      </app-folder-tree>
+    </ng-template>
+  </p-popover>
+</div>

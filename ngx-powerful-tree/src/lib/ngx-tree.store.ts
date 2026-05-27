@@ -2,8 +2,10 @@ import { Injectable, computed, signal } from '@angular/core';
 import {
   DragPosition,
   NgxTreeItem,
+  NgxTreeSearchPredicate,
   NgxTreeStructuralItem,
   SelectableTypes,
+  OTHER_USERS_ROOT_ID,
 } from './ngx-tree.types';
 
 const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableTypes): boolean => {
@@ -27,6 +29,7 @@ export class NgxTreeStore {
   readonly editingItemId = signal<string | null>(null);
   readonly searchQuery = signal<string>('');
   readonly selectableTypes = signal<SelectableTypes>('files');
+  readonly searchPredicate = signal<NgxTreeSearchPredicate | null>(null);
 
   // Minimal drag state tracked purely to know who is dragging, no 'over' state
   readonly draggedItemId = signal<string | null>(null);
@@ -47,8 +50,12 @@ export class NgxTreeStore {
     const ancestorIds = new Set<string>();
 
     if (isSearching) {
+      const customPredicate = this.searchPredicate();
       for (const [id, item] of this.itemsMap.entries()) {
-        if (item.name.toLowerCase().includes(query)) {
+        const matches = customPredicate
+          ? customPredicate(item, query)
+          : item.name.toLowerCase().includes(query);
+        if (matches) {
           matchedIds.add(id);
           let curr = this.parentsMap.get(id);
           while (curr) {
@@ -408,6 +415,40 @@ export class NgxTreeStore {
         });
       }
     }
+
+    this.focusedItemId.set(draggedId);
+    this.version.update((v) => v + 1);
+    return true;
+  }
+
+  moveToRoot(draggedId: string): boolean {
+    if (this.isLocked(draggedId)) return false;
+    const dragged = this.itemsMap.get(draggedId);
+    if (!dragged) return false;
+
+    const sourceParentId = this.parentsMap.get(draggedId);
+    if (sourceParentId === undefined || sourceParentId === null) {
+      return false; // Already at root!
+    }
+
+    // Detach from current parent
+    const sourceParent = this.itemsMap.get(sourceParentId);
+    if (sourceParent && sourceParent.children) {
+      sourceParent.children = sourceParent.children.filter((cid) => cid !== draggedId);
+    }
+
+    // Attach to root level, placing it before OTHER_USERS_ROOT_ID if present, to preserve its end position
+    this.parentsMap.set(draggedId, null);
+    this.rootIds.update((ids) => {
+      const next = ids.filter((cid) => cid !== draggedId);
+      const otherUsersIdx = next.indexOf(OTHER_USERS_ROOT_ID);
+      if (otherUsersIdx !== -1) {
+        next.splice(otherUsersIdx, 0, draggedId);
+      } else {
+        next.push(draggedId);
+      }
+      return next;
+    });
 
     this.focusedItemId.set(draggedId);
     this.version.update((v) => v + 1);

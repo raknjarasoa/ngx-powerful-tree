@@ -277,7 +277,11 @@
   </div>
 
   @defer (when isMoveOverlayOpen()) {
-  <div class="overlay-backdrop" (click)="cancelMove()" [style.display]="isMoveOverlayOpen() ? 'flex' : 'none'">
+  <div
+    class="overlay-backdrop"
+    (click)="cancelMove()"
+    [style.display]="isMoveOverlayOpen() ? 'flex' : 'none'"
+  >
     <div class="overlay-modal" (click)="$event.stopPropagation()">
       <header class="overlay-modal-header">
         <div>

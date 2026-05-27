@@ -10,5 +10,9 @@ export const appRoutes: Route[] = [
     path: 'playground',
     loadComponent: () => import('./playground/playground').then((m) => m.PlaygroundComponent),
   },
+  {
+    path: 'full',
+    loadComponent: () => import('./playground/full').then((m) => m.FullComponent),
+  },
   { path: '**', redirectTo: '' },
 ];
