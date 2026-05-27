@@ -130,21 +130,16 @@ export class NgxTreeRowDirective implements OnInit {
 
       const sourceEl = this.el.nativeElement as HTMLElement;
       const rect = sourceEl.getBoundingClientRect();
-      const ghost = sourceEl.cloneNode(true) as HTMLElement;
-      ghost.style.position = 'fixed';
-      ghost.style.top = '-9999px';
-      ghost.style.left = '-9999px';
-      ghost.style.width = `${rect.width}px`;
-      ghost.style.opacity = '1';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.boxSizing = 'border-box';
-      ghost.style.background = 'var(--ngx-tree-bg, #ffffff)';
-      ghost.classList.remove(
-        'ngx-tree-row--dragging',
-        'ngx-tree-row--drag-over-before',
-        'ngx-tree-row--drag-over-after',
-        'ngx-tree-row--drag-over-inside'
-      );
+
+      const ghost = document.createElement('div');
+      ghost.textContent = this.item().name;
+      ghost.style.cssText =
+        'position:fixed;top:-9999px;left:-9999px;pointer-events:none;box-sizing:border-box;' +
+        `width:${Math.min(rect.width, 300)}px;height:${rect.height}px;` +
+        'display:flex;align-items:center;padding:0 12px;' +
+        'font:14px/1 system-ui,sans-serif;background:var(--ngx-tree-bg,#fff);' +
+        'border:1px solid var(--ngx-tree-border,#cbd5e1);border-radius:4px;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;will-change:transform;';
       document.body.appendChild(ghost);
       this.dragGhostEl = ghost;
 
@@ -197,12 +192,29 @@ export class NgxTreeRowDirective implements OnInit {
     this.applyDragClasses(finalPosition, true);
 
     // Spring-loaded folder expansion at 800ms hover.
+    // Anchor scroll position around the expansion so the target row doesn't shift.
     if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
       if (!this.hoverTimer) {
         this.hoverTimer = window.setTimeout(() => {
+          const el = this.el.nativeElement as HTMLElement;
+          const scrollParent = el.closest('cdk-virtual-scroll-viewport');
+          const rectBefore = el.getBoundingClientRect();
+          const scrollBefore = scrollParent?.scrollTop ?? 0;
+
           this.ngZone.run(() => {
             this.store.setExpanded(this.item().id, true);
           });
+
+          if (scrollParent) {
+            requestAnimationFrame(() => {
+              const rectAfter = el.getBoundingClientRect();
+              const drift = rectAfter.top - rectBefore.top;
+              if (Math.abs(drift) > 1) {
+                scrollParent.scrollTop = scrollBefore + drift;
+              }
+            });
+          }
+
           this.hoverTimer = null;
         }, 800);
       }

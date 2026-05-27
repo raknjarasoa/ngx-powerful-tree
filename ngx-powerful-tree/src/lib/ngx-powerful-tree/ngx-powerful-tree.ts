@@ -486,8 +486,11 @@ export class NgxPowerfulTree implements AfterViewInit {
   }
 
   // --- Auto-scroll during drag-and-drop (runs outside Angular zone) ---
-  private scrollSpeed = 15;
+  private scrollSpeed = 8;
+  private maxScrollSpeed = 12;
   private animationFrameId: number | null = null;
+  private lastScrollTime = 0;
+  private scrollThrottleMs = 32; // ~30fps cap to avoid fighting CDK
 
   ngAfterViewInit() {
     if (!isPlatformBrowser(this.platformId)) {
@@ -499,7 +502,10 @@ export class NgxPowerfulTree implements AfterViewInit {
     const viewportEl = vpt.elementRef.nativeElement;
 
     this.ngZone.runOutsideAngular(() => {
-      const handleDragOver = (event: DragEvent) => {
+      let pendingDragOverY: number | null = null;
+      let dragOverRafId: number | null = null;
+
+      const processDragOver = (mouseY: number) => {
         const draggedId = this.store.draggedItemId();
         if (!draggedId) {
           this.stopAutoScroll();
@@ -507,7 +513,6 @@ export class NgxPowerfulTree implements AfterViewInit {
         }
 
         const rect = viewportEl.getBoundingClientRect();
-        const mouseY = event.clientY;
 
         const topThreshold = rect.top + 40;
         const bottomThreshold = rect.bottom - 40;
@@ -521,6 +526,18 @@ export class NgxPowerfulTree implements AfterViewInit {
         } else {
           this.stopAutoScroll();
         }
+      };
+
+      const handleDragOver = (event: DragEvent) => {
+        pendingDragOverY = event.clientY;
+        if (dragOverRafId !== null) return;
+        dragOverRafId = requestAnimationFrame(() => {
+          dragOverRafId = null;
+          if (pendingDragOverY !== null) {
+            processDragOver(pendingDragOverY);
+            pendingDragOverY = null;
+          }
+        });
       };
 
       const handleDragLeaveOrEnd = () => {
@@ -537,6 +554,7 @@ export class NgxPowerfulTree implements AfterViewInit {
         viewportEl.removeEventListener('dragleave', handleDragLeaveOrEnd);
         viewportEl.removeEventListener('drop', handleDragLeaveOrEnd);
         document.removeEventListener('dragend', handleDragLeaveOrEnd);
+        if (dragOverRafId !== null) cancelAnimationFrame(dragOverRafId);
         this.stopAutoScroll();
       });
     });
@@ -545,9 +563,15 @@ export class NgxPowerfulTree implements AfterViewInit {
   private startAutoScroll(element: HTMLElement, direction: number, intensity: number) {
     this.stopAutoScroll();
 
+    const clampedIntensity = Math.min(intensity, 1);
+    const speed = Math.min(this.scrollSpeed * clampedIntensity, this.maxScrollSpeed);
+
     const scrollFn = () => {
-      const amount = direction * this.scrollSpeed * intensity;
-      element.scrollTop += amount;
+      const now = performance.now();
+      if (now - this.lastScrollTime >= this.scrollThrottleMs) {
+        this.lastScrollTime = now;
+        element.scrollTop += direction * speed;
+      }
       this.animationFrameId = requestAnimationFrame(scrollFn);
     };
 

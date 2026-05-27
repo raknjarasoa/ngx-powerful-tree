@@ -194,6 +194,7 @@ export class NgxTreeStore {
 
   setExpanded(id: string, isExpanded: boolean) {
     this.expandedItems.update((set) => {
+      if (isExpanded === set.has(id)) return set;
       const next = new Set(set);
       isExpanded ? next.add(id) : next.delete(id);
       return next;
@@ -222,6 +223,7 @@ export class NgxTreeStore {
     }
 
     this.selectedItems.update((set) => {
+      if (!multiSelect && set.size === 1 && set.has(id)) return set;
       const next = new Set(multiSelect ? set : []);
       if (multiSelect && next.has(id)) next.delete(id);
       else next.add(id);
