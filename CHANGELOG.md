@@ -1,3 +1,9 @@
+# [2.2.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.1.0...v2.2.0) (2026-05-27)
+
+### Features
+
+- rewrite ngx-powerful-tree for extreme performance ([#7](https://github.com/raknjarasoa/ngx-powerful-tree/issues/7)) ([3c8ed9c](https://github.com/raknjarasoa/ngx-powerful-tree/commit/3c8ed9c30dda1bd42c3ac05ad68f6b1c0136a03c))
+
 # [2.1.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.0.0...v2.1.0) (2026-05-27)
 
 ### Features
