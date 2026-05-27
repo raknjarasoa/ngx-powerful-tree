@@ -151,7 +151,7 @@ export class NgxTreeRowDirective implements OnInit {
       event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
     }
 
-    this.store.draggedItemId.set(this.item().id);
+    this.store.setDraggedItemId(this.item().id);
   }
 
   private handleDragOver(event: DragEvent) {
@@ -255,10 +255,10 @@ export class NgxTreeRowDirective implements OnInit {
             position,
           });
         }
-        this.store.draggedItemId.set(null);
+        this.store.setDraggedItemId(null);
       });
     } else {
-      this.store.draggedItemId.set(null);
+      this.store.setDraggedItemId(null);
     }
 
     this.currentTargetId = null;
@@ -270,7 +270,7 @@ export class NgxTreeRowDirective implements OnInit {
     this.cancelDragOverRaf();
     this.removeDragGhost();
     this.clearDragClasses();
-    this.store.draggedItemId.set(null);
+    this.store.setDraggedItemId(null);
     this.currentTargetId = null;
     this.currentPosition = null;
   }

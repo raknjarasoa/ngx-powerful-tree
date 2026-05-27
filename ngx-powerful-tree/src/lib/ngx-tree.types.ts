@@ -30,12 +30,6 @@ export interface NgxTreeItem<T = any> {
 
 export type DragPosition = 'before' | 'after' | 'inside' | null;
 
-export interface DragState {
-  draggedItemId: string | null;
-  dragOverItemId: string | null;
-  position: DragPosition;
-}
-
 /**
  * Structural item in the flattened visible list. Contains everything needed
  * for layout and rendering but NOT transient row state (selected, focused,
@@ -77,6 +71,6 @@ export interface NgxTreeState<T = any> {
   focusedItemId: string | null;
   editingItemId: string | null;
   searchQuery: string;
-  dragState: DragState;
+  draggedItemId: string | null;
   selectableTypes: SelectableTypes;
 }

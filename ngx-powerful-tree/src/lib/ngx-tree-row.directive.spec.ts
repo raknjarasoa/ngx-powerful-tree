@@ -74,14 +74,14 @@ describe('NgxTreeRowDirective drag math', () => {
   });
 
   it('drops above the top quarter of a folder as before', async () => {
-    component.store.draggedItemId.set('a');
+    component.store.setDraggedItemId('a');
     dispatchDragOver(rows[0], 0 + 4); // top of folder row
     await flushRaf();
     expect(rows[0].classList.contains('ngx-tree-row--drag-over-before')).toBe(true);
   });
 
   it('drops in the middle of a collapsed folder as inside', async () => {
-    component.store.draggedItemId.set('a');
+    component.store.setDraggedItemId('a');
     dispatchDragOver(rows[0], 0 + 20); // middle of folder row
     await flushRaf();
     expect(rows[0].classList.contains('ngx-tree-row--drag-over-inside')).toBe(true);
@@ -90,21 +90,21 @@ describe('NgxTreeRowDirective drag math', () => {
   it('keeps after-position when the next sibling is the dragged item', async () => {
     // Drag 'b' over the bottom half of file 'a' — the only sibling after 'a'
     // is 'b' itself, so the mapping should be skipped and position stays 'after'.
-    component.store.draggedItemId.set('b');
+    component.store.setDraggedItemId('b');
     dispatchDragOver(rows[1], 40 + 38);
     await flushRaf();
     expect(rows[1].classList.contains('ngx-tree-row--drag-over-after')).toBe(true);
   });
 
   it('refuses to set drag state when hovering over the dragged item itself', async () => {
-    component.store.draggedItemId.set('folder');
+    component.store.setDraggedItemId('folder');
     dispatchDragOver(rows[0], 0 + 20);
     await flushRaf();
     expect(rows[0].classList.contains('ngx-tree-row--drag-over-inside')).toBe(false);
   });
 
   it('coalesces multiple dragover events into a single store write per frame', async () => {
-    component.store.draggedItemId.set('a');
+    component.store.setDraggedItemId('a');
     // Three rapid events at different Ys — only one rAF tick will run.
     dispatchDragOver(rows[0], 4);
     dispatchDragOver(rows[0], 10);

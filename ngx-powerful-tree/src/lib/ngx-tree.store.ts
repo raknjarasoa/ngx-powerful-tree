@@ -1,10 +1,25 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { computed } from '@angular/core';
+import { signalStore, withState, withComputed, withMethods, patchState } from '@ngrx/signals';
 import {
-  DragPosition,
   NgxTreeItem,
+  NgxTreeProxyItem,
   NgxTreeStructuralItem,
+  NgxTreeState,
+  DragPosition,
   SelectableTypes,
 } from './ngx-tree.types';
+
+const initialState: NgxTreeState = {
+  items: {},
+  rootIds: [],
+  expandedItems: new Set<string>(),
+  selectedItems: new Set<string>(),
+  focusedItemId: null,
+  editingItemId: null,
+  searchQuery: '',
+  draggedItemId: null,
+  selectableTypes: 'files',
+};
 
 const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableTypes): boolean => {
   if (!item) return false;
@@ -13,426 +28,507 @@ const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableT
   return !item.isFolder;
 };
 
-@Injectable()
-export class NgxTreeStore {
-  // --- Mutable Data for O(1) mutations ---
-  private readonly itemsMap = new Map<string, NgxTreeItem>();
-  private readonly parentsMap = new Map<string, string | null>();
+export const NgxTreeStore = signalStore(
+  withState(initialState),
+  withComputed((store) => {
+    // Reflects the last committed items snapshot. Methods that spread-copy
+    // items and then read parentMap() will see the pre-mutation mapping.
+    const parentMap = computed(() => {
+      const items = store.items();
+      const mapping: Record<string, string> = {};
+      for (const id in items) {
+        const item = items[id];
+        if (item.children) {
+          for (const childId of item.children) {
+            mapping[childId] = id;
+          }
+        }
+      }
+      return mapping;
+    });
 
-  // --- Signals ---
-  readonly rootIds = signal<string[]>([]);
-  readonly expandedItems = signal<Set<string>>(new Set());
-  readonly selectedItems = signal<Set<string>>(new Set());
-  readonly focusedItemId = signal<string | null>(null);
-  readonly editingItemId = signal<string | null>(null);
-  readonly searchQuery = signal<string>('');
-  readonly selectableTypes = signal<SelectableTypes>('files');
+    // Lowercase name index built once per items change. Reused across keystrokes.
+    const nameIndex = computed(() => {
+      const items = store.items();
+      const idx: Record<string, string> = {};
+      for (const id in items) {
+        idx[id] = items[id].name.toLowerCase();
+      }
+      return idx;
+    });
 
-  // Minimal drag state tracked purely to know who is dragging, no 'over' state
-  readonly draggedItemId = signal<string | null>(null);
+    const searchIndex = computed(() => {
+      const items = store.items();
+      const query = store.searchQuery().trim().toLowerCase();
+      const matchedIds = new Set<string>();
+      const ancestorIds = new Set<string>();
 
-  // Bump this version signal whenever itemsMap/parentsMap/rootIds structurally change
-  private readonly version = signal(0);
+      if (!query) {
+        return { matchedIds, ancestorIds, isSearching: false };
+      }
 
-  // --- Computed Views ---
-  readonly flattenedStructure = computed(() => {
-    this.version(); // Dependency on structural changes
-    const rootIds = this.rootIds();
-    const expanded = this.expandedItems();
-    const selectable = this.selectableTypes();
-    const query = this.searchQuery().trim().toLowerCase();
-
-    const isSearching = query.length > 0;
-    const matchedIds = new Set<string>();
-    const ancestorIds = new Set<string>();
-
-    if (isSearching) {
-      for (const [id, item] of this.itemsMap.entries()) {
-        if (item.name.toLowerCase().includes(query)) {
+      const names = nameIndex();
+      for (const id in items) {
+        if (names[id].includes(query)) {
           matchedIds.add(id);
-          let curr = this.parentsMap.get(id);
-          while (curr) {
-            if (ancestorIds.has(curr)) break;
-            ancestorIds.add(curr);
-            curr = this.parentsMap.get(curr);
-          }
-        }
-      }
-    }
-
-    const foldersOnly = selectable === 'folders';
-    const list: NgxTreeStructuralItem[] = [];
-    const indexById: Record<string, number> = {};
-
-    interface StackItem {
-      id: string;
-      depth: number;
-      parentId: string | null;
-      parentLocked: boolean;
-    }
-    const stack: StackItem[] = [];
-
-    for (let i = rootIds.length - 1; i >= 0; i--) {
-      stack.push({ id: rootIds[i], depth: 0, parentId: null, parentLocked: false });
-    }
-
-    while (stack.length > 0) {
-      const { id, depth, parentId, parentLocked } = stack.pop()!;
-      const item = this.itemsMap.get(id);
-      if (!item) continue;
-
-      if (foldersOnly && !item.isFolder) continue;
-
-      const matches = isSearching ? matchedIds.has(id) : false;
-      const isAncestor = isSearching ? ancestorIds.has(id) : false;
-
-      if (isSearching && !matches && !isAncestor) continue;
-
-      const isExpanded = isSearching ? isAncestor || expanded.has(id) : expanded.has(id);
-      const locked = parentLocked || !!item.locked;
-
-      const children = item.children || [];
-      let hasFolderChildren = false;
-      if (foldersOnly) {
-        for (const cid of children) {
-          if (this.itemsMap.get(cid)?.isFolder) {
-            hasFolderChildren = true;
-            break;
-          }
         }
       }
 
-      const hasVisibleChildren = foldersOnly ? hasFolderChildren : children.length > 0;
-
-      indexById[id] = list.length;
-      list.push({
-        id,
-        depth,
-        parentId,
-        isFolder: item.isFolder,
-        children,
-        matchesSearch: matches,
-        locked,
-        hasVisibleChildren,
-        expanded: isExpanded,
-        name: item.name,
-        icon: item.icon,
-        data: item.data,
-      });
-
-      if (item.isFolder && children.length > 0) {
-        const shouldTraverse = isSearching ? true : isExpanded;
-        if (shouldTraverse) {
-          for (let i = children.length - 1; i >= 0; i--) {
-            stack.push({ id: children[i], depth: depth + 1, parentId: id, parentLocked: locked });
-          }
+      const parents = parentMap();
+      for (const matchedId of matchedIds) {
+        let parentId = parents[matchedId];
+        while (parentId) {
+          if (ancestorIds.has(parentId)) break;
+          ancestorIds.add(parentId);
+          parentId = parents[parentId];
         }
       }
-    }
 
-    return { list, indexById };
-  });
-
-  readonly totalVisibleCount = computed(() => this.flattenedStructure().list.length);
-
-  // --- Methods ---
-
-  isLocked(id: string): boolean {
-    let curr: string | null | undefined = id;
-    while (curr) {
-      const item = this.itemsMap.get(curr);
-      if (!item) return false;
-      if (item.locked) return true;
-      curr = this.parentsMap.get(curr);
-    }
-    return false;
-  }
-
-  setItems(itemsRecord: Record<string, NgxTreeItem>, rootIds: string[]) {
-    this.itemsMap.clear();
-    this.parentsMap.clear();
-    for (const id in itemsRecord) {
-      const item = itemsRecord[id];
-      this.itemsMap.set(id, item);
-      if (item.children) {
-        for (const childId of item.children) {
-          this.parentsMap.set(childId, id);
-        }
-      }
-    }
-    for (const rootId of rootIds) {
-      this.parentsMap.set(rootId, null);
-    }
-    this.rootIds.set([...rootIds]);
-    this.version.update((v) => v + 1);
-  }
-
-  reload(itemsRecord: Record<string, NgxTreeItem>, rootIds: string[]) {
-    this.setItems(itemsRecord, rootIds);
-    this.expandedItems.set(new Set());
-    this.selectedItems.set(new Set());
-    this.focusedItemId.set(null);
-    this.editingItemId.set(null);
-    this.searchQuery.set('');
-    this.draggedItemId.set(null);
-  }
-
-  toggleExpand(id: string) {
-    this.expandedItems.update((set) => {
-      const next = new Set(set);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  setExpanded(id: string, isExpanded: boolean) {
-    this.expandedItems.update((set) => {
-      const next = new Set(set);
-      isExpanded ? next.add(id) : next.delete(id);
-      return next;
-    });
-  }
-
-  expandAll() {
-    const next = new Set<string>();
-    for (const [id, item] of this.itemsMap.entries()) {
-      if (item.isFolder) next.add(id);
-    }
-    this.expandedItems.set(next);
-  }
-
-  collapseAll() {
-    this.expandedItems.set(new Set());
-  }
-
-  selectItem(id: string, multiSelect = false): boolean {
-    const item = this.itemsMap.get(id);
-    if (!item) return false;
-    const selectable = this.selectableTypes();
-    if (!isItemSelectable(item, selectable)) {
-      this.focusedItemId.set(id);
-      return false;
-    }
-
-    this.selectedItems.update((set) => {
-      const next = new Set(multiSelect ? set : []);
-      if (multiSelect && next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    this.focusedItemId.set(id);
-    return true;
-  }
-
-  clearSelection() {
-    this.selectedItems.set(new Set());
-  }
-
-  setFocusedItemId(id: string | null) {
-    this.focusedItemId.set(id);
-  }
-
-  setEditingItemId(id: string | null) {
-    if (id !== null && this.isLocked(id)) return;
-    this.editingItemId.set(id);
-  }
-
-  setSearchQuery(query: string) {
-    this.searchQuery.set(query);
-  }
-
-  setSelectableTypes(types: SelectableTypes) {
-    this.selectableTypes.set(types);
-  }
-
-  renameItem(id: string, newName: string): boolean {
-    const item = this.itemsMap.get(id);
-    if (!item || this.isLocked(id)) {
-      this.editingItemId.set(null);
-      return false;
-    }
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === item.name) {
-      this.editingItemId.set(null);
-      return false;
-    }
-    item.name = trimmed; // Mutate in place
-    this.editingItemId.set(null);
-    this.version.update((v) => v + 1);
-    return true;
-  }
-
-  addItem(parentId: string | null, newItem: NgxTreeItem): boolean {
-    if (this.itemsMap.has(newItem.id)) return false;
-    if (parentId && this.isLocked(parentId)) return false;
-
-    // Mutate copy of children if provided
-    const itemToStore = { ...newItem, children: newItem.children ? [...newItem.children] : [] };
-    this.itemsMap.set(newItem.id, itemToStore);
-    this.parentsMap.set(newItem.id, parentId);
-
-    if (parentId === null) {
-      this.rootIds.update((ids) => {
-        const next = [...ids];
-        itemToStore.isFolder ? next.unshift(newItem.id) : next.push(newItem.id);
-        return next;
-      });
-    } else {
-      const parent = this.itemsMap.get(parentId);
-      if (!parent || !parent.isFolder) {
-        this.itemsMap.delete(newItem.id);
-        this.parentsMap.delete(newItem.id);
-        return false;
-      }
-      parent.children = parent.children || [];
-      itemToStore.isFolder ? parent.children.unshift(newItem.id) : parent.children.push(newItem.id);
-      this.setExpanded(parentId, true);
-    }
-
-    this.version.update((v) => v + 1);
-    this.focusedItemId.set(newItem.id);
-    return true;
-  }
-
-  deleteItem(id: string): boolean {
-    if (!this.itemsMap.has(id) || this.isLocked(id)) return false;
-
-    const parentId = this.parentsMap.get(id);
-    if (parentId !== undefined && parentId !== null) {
-      const parent = this.itemsMap.get(parentId);
-      if (parent && parent.children) {
-        parent.children = parent.children.filter((cid) => cid !== id);
-      }
-    } else {
-      this.rootIds.update((ids) => ids.filter((rid) => rid !== id));
-    }
-
-    const deletedIds = new Set<string>();
-    const stack = [id];
-    while (stack.length > 0) {
-      const curr = stack.pop()!;
-      if (deletedIds.has(curr)) continue;
-      deletedIds.add(curr);
-      const item = this.itemsMap.get(curr);
-      if (item && item.children) {
-        for (const cid of item.children) stack.push(cid);
-      }
-      this.itemsMap.delete(curr);
-      this.parentsMap.delete(curr);
-    }
-
-    this.selectedItems.update((set) => {
-      let changed = false;
-      const next = new Set(set);
-      for (const did of deletedIds) {
-        if (next.delete(did)) changed = true;
-      }
-      return changed ? next : set;
+      return { matchedIds, ancestorIds, isSearching: true };
     });
 
-    this.expandedItems.update((set) => {
-      let changed = false;
-      const next = new Set(set);
-      for (const did of deletedIds) {
-        if (next.delete(did)) changed = true;
-      }
-      return changed ? next : set;
-    });
+    // Structural flat list — depends only on items/rootIds/expanded/search/selectableTypes.
+    // Row-state (focused/selected/editing/drag) is read separately in the directive so
+    // a focus/selection change doesn't re-flatten the whole tree.
+    const flattenedStructure = computed(() => {
+      const items = store.items();
+      const rootIds = store.rootIds();
+      const expandedItems = store.expandedItems();
+      const selectableTypes = store.selectableTypes();
+      const foldersOnly = selectableTypes === 'folders'; // hide files in folder-only mode
+      const { matchedIds, ancestorIds, isSearching } = searchIndex();
 
-    const focused = this.focusedItemId();
-    if (focused && deletedIds.has(focused)) this.focusedItemId.set(null);
+      const list: NgxTreeStructuralItem[] = [];
+      const indexById: Record<string, number> = {};
 
-    const editing = this.editingItemId();
-    if (editing && deletedIds.has(editing)) this.editingItemId.set(null);
+      const traverse = (
+        id: string,
+        depth: number,
+        parentId: string | null,
+        parentLocked: boolean
+      ) => {
+        const item = items[id];
+        if (!item) return;
 
-    const dragged = this.draggedItemId();
-    if (dragged && deletedIds.has(dragged)) this.draggedItemId.set(null);
+        if (foldersOnly && !item.isFolder) return;
 
-    this.version.update((v) => v + 1);
-    return true;
-  }
+        const matches = matchedIds.has(id);
+        const isAncestor = ancestorIds.has(id);
+        if (isSearching && !matches && !isAncestor) return;
 
-  moveItem(draggedId: string, targetId: string, position: DragPosition): boolean {
-    if (!position || draggedId === targetId) return false;
-    const dragged = this.itemsMap.get(draggedId);
-    const target = this.itemsMap.get(targetId);
-    if (!dragged || !target || this.isLocked(draggedId)) return false;
+        const isExpanded = isSearching
+          ? isAncestor || expandedItems.has(id)
+          : expandedItems.has(id);
+        const isLocked = parentLocked || !!item.locked;
 
-    if (position === 'inside' && (!target.isFolder || this.isLocked(targetId))) return false;
-    if (position !== 'inside') {
-      const targetParentId = this.parentsMap.get(targetId);
-      if (targetParentId && this.isLocked(targetParentId)) return false;
-    }
+        const hasChildren = !!(item.isFolder && item.children && item.children.length > 0);
+        const hasFolderChildren = !!(
+          item.isFolder &&
+          item.children &&
+          item.children.some((childId) => items[childId]?.isFolder)
+        );
+        const hasVisibleChildren = foldersOnly ? hasFolderChildren : hasChildren;
 
-    // Cycle check
-    let curr: string | null | undefined = targetId;
-    while (curr) {
-      if (curr === draggedId) return false;
-      curr = this.parentsMap.get(curr);
-    }
-
-    // Detach
-    const sourceParentId = this.parentsMap.get(draggedId);
-    if (sourceParentId !== undefined && sourceParentId !== null) {
-      const sourceParent = this.itemsMap.get(sourceParentId);
-      if (sourceParent && sourceParent.children) {
-        sourceParent.children = sourceParent.children.filter((cid) => cid !== draggedId);
-      }
-    } else {
-      this.rootIds.update((ids) => ids.filter((cid) => cid !== draggedId));
-    }
-
-    // Attach
-    if (position === 'inside') {
-      target.children = target.children || [];
-      target.children.unshift(draggedId);
-      this.parentsMap.set(draggedId, targetId);
-      this.setExpanded(targetId, true);
-    } else {
-      const targetParentId = this.parentsMap.get(targetId);
-      this.parentsMap.set(draggedId, targetParentId ?? null);
-      if (targetParentId !== undefined && targetParentId !== null) {
-        const targetParent = this.itemsMap.get(targetParentId);
-        if (targetParent && targetParent.children) {
-          const idx = targetParent.children.indexOf(targetId);
-          const insertIdx = position === 'before' ? idx : idx + 1;
-          targetParent.children.splice(insertIdx, 0, draggedId);
-        }
-      } else {
-        this.rootIds.update((ids) => {
-          const next = [...ids];
-          const idx = next.indexOf(targetId);
-          const insertIdx = position === 'before' ? idx : idx + 1;
-          next.splice(insertIdx, 0, draggedId);
-          return next;
+        indexById[id] = list.length;
+        list.push({
+          id,
+          depth,
+          parentId,
+          isFolder: item.isFolder,
+          children: item.children || [],
+          matchesSearch: matches,
+          locked: isLocked,
+          hasVisibleChildren,
+          expanded: isExpanded,
+          name: item.name,
+          icon: item.icon,
+          data: item.data,
         });
+
+        if (item.isFolder && item.children) {
+          const shouldTraverseChildren = isSearching ? true : isExpanded;
+          if (shouldTraverseChildren) {
+            for (const childId of item.children) {
+              traverse(childId, depth + 1, id, isLocked);
+            }
+          }
+        }
+      };
+
+      for (const rootId of rootIds) {
+        traverse(rootId, 0, null, false);
       }
-    }
 
-    this.focusedItemId.set(draggedId);
-    this.version.update((v) => v + 1);
-    return true;
-  }
+      return { list, indexById };
+    });
 
-  // --- Public Accessors for External Integrations (e.g., Playground) ---
+    // Backwards-compatible projection: merges structural and row state into the
+    // legacy NgxTreeProxyItem shape. Read this only when the merged view is
+    // genuinely needed (template, keyboard navigation). The directive should
+    // read structural + state separately for hot paths.
+    const flattenedVisibleItems = computed<NgxTreeProxyItem[]>(() => {
+      const { list } = flattenedStructure();
+      const selectedItems = store.selectedItems();
+      const focusedItemId = store.focusedItemId();
+      const editingItemId = store.editingItemId();
 
-  getItem(id: string): NgxTreeItem | undefined {
-    return this.itemsMap.get(id);
-  }
+      const out: NgxTreeProxyItem[] = new Array(list.length);
+      for (let i = 0; i < list.length; i++) {
+        const node = list[i];
+        out[i] = {
+          id: node.id,
+          name: node.name,
+          isFolder: node.isFolder,
+          parentId: node.parentId,
+          children: node.children,
+          depth: node.depth,
+          expanded: node.expanded, // already computed by flattenedStructure
+          selected: selectedItems.has(node.id),
+          focused: focusedItemId === node.id,
+          editing: editingItemId === node.id,
+          matchesSearch: node.matchesSearch,
+          locked: node.locked,
+          data: node.data,
+          icon: node.icon,
+          hasVisibleChildren: node.hasVisibleChildren,
+        };
+      }
+      return out;
+    });
 
-  getParentId(id: string): string | null {
-    return this.parentsMap.get(id) ?? null;
-  }
+    return {
+      parentMap,
+      nameIndex,
+      searchIndex,
+      flattenedStructure,
+      flattenedVisibleItems,
+      totalVisibleCount: computed(() => flattenedStructure().list.length),
+    };
+  }),
+  withMethods((store) => {
+    const isLocked = (id: string): boolean => {
+      const items = store.items();
+      const parents = store.parentMap();
+      let cursor: string | undefined = id;
+      while (cursor) {
+        const item = items[cursor];
+        if (!item) return false;
+        if (item.locked) return true;
+        cursor = parents[cursor];
+      }
+      return false;
+    };
 
-  getRootIds(): string[] {
-    return this.rootIds();
-  }
+    const applyExpanded = (id: string, isExpanded: boolean) => {
+      const expanded = new Set(store.expandedItems());
+      if (isExpanded) expanded.add(id);
+      else expanded.delete(id);
+      patchState(store, { expandedItems: expanded });
+    };
 
-  getAllItemsAsRecord(): Record<string, NgxTreeItem> {
-    const record: Record<string, NgxTreeItem> = {};
-    for (const [key, value] of this.itemsMap.entries()) {
-      record[key] = value;
-    }
-    return record;
-  }
-}
+    return {
+      isLocked,
+
+      setItems(items: Record<string, NgxTreeItem>, rootIds: string[]) {
+        patchState(store, { items, rootIds });
+      },
+
+      reload(items: Record<string, NgxTreeItem>, rootIds: string[]) {
+        patchState(store, {
+          items,
+          rootIds,
+          expandedItems: new Set<string>(),
+          selectedItems: new Set<string>(),
+          focusedItemId: null,
+          editingItemId: null,
+          searchQuery: '',
+          draggedItemId: null,
+        });
+      },
+
+      toggleExpand(id: string) {
+        applyExpanded(id, !store.expandedItems().has(id));
+      },
+
+      setExpanded(id: string, isExpanded: boolean) {
+        applyExpanded(id, isExpanded);
+      },
+
+      expandAll() {
+        const expanded = new Set<string>();
+        const items = store.items();
+        for (const id in items) {
+          if (items[id].isFolder) expanded.add(id);
+        }
+        patchState(store, { expandedItems: expanded });
+      },
+
+      collapseAll() {
+        patchState(store, { expandedItems: new Set<string>() });
+      },
+
+      selectItem(id: string, multiSelect = false): boolean {
+        const item = store.items()[id];
+        if (!item) return false;
+        const selectable = store.selectableTypes();
+        if (!isItemSelectable(item, selectable)) {
+          patchState(store, { focusedItemId: id });
+          return false;
+        }
+        const current = store.selectedItems();
+        const selected = new Set<string>(multiSelect ? current : []);
+        if (multiSelect && selected.has(id)) selected.delete(id);
+        else selected.add(id);
+        // Skip emission if membership is unchanged in single-select case.
+        if (!multiSelect && current.size === 1 && current.has(id)) {
+          patchState(store, { focusedItemId: id });
+          return true;
+        }
+        patchState(store, { selectedItems: selected, focusedItemId: id });
+        return true;
+      },
+
+      clearSelection() {
+        if (store.selectedItems().size === 0) return;
+        patchState(store, { selectedItems: new Set<string>() });
+      },
+
+      setFocusedItemId(id: string | null) {
+        if (store.focusedItemId() === id) return;
+        patchState(store, { focusedItemId: id });
+      },
+
+      setEditingItemId(id: string | null) {
+        if (id !== null && isLocked(id)) return;
+        if (store.editingItemId() === id) return;
+        patchState(store, { editingItemId: id });
+      },
+
+      setSearchQuery(query: string) {
+        if (store.searchQuery() === query) return;
+        patchState(store, { searchQuery: query });
+      },
+
+      setSelectableTypes(selectableTypes: SelectableTypes) {
+        if (store.selectableTypes() === selectableTypes) return;
+        patchState(store, { selectableTypes });
+      },
+
+      renameItem(id: string, newName: string): boolean {
+        const current = store.items();
+        const item = current[id];
+        if (!item) return false;
+        if (isLocked(id)) {
+          patchState(store, { editingItemId: null });
+          return false;
+        }
+        const trimmed = newName.trim();
+        if (!trimmed || trimmed === item.name) {
+          patchState(store, { editingItemId: null });
+          return false;
+        }
+        const items = { ...current, [id]: { ...item, name: trimmed } };
+        patchState(store, { items, editingItemId: null });
+        return true;
+      },
+
+      addItem(parentId: string | null, newItem: NgxTreeItem): boolean {
+        const current = store.items();
+        if (current[newItem.id]) return false; // duplicate id
+        if (parentId && isLocked(parentId)) return false;
+
+        const items = { ...current, [newItem.id]: newItem };
+        let rootIds = store.rootIds();
+        if (parentId === null) {
+          rootIds = newItem.isFolder ? [newItem.id, ...rootIds] : [...rootIds, newItem.id];
+        } else {
+          const parent = items[parentId];
+          if (!parent || !parent.isFolder) return false;
+          const children = parent.children ? [...parent.children] : [];
+          if (newItem.isFolder) children.unshift(newItem.id);
+          else children.push(newItem.id);
+          items[parentId] = { ...parent, children };
+        }
+
+        const expanded = new Set(store.expandedItems());
+        if (parentId) expanded.add(parentId);
+
+        patchState(store, {
+          items,
+          rootIds,
+          expandedItems: expanded,
+          focusedItemId: newItem.id,
+        });
+        return true;
+      },
+
+      deleteItem(id: string): boolean {
+        const current = store.items();
+        if (!current[id]) return false;
+        if (isLocked(id)) return false;
+
+        const items = { ...current };
+        const parents = store.parentMap();
+        const parentId = parents[id];
+        let rootIds = store.rootIds();
+
+        if (parentId) {
+          const parent = items[parentId];
+          if (parent && parent.children) {
+            items[parentId] = {
+              ...parent,
+              children: parent.children.filter((cId) => cId !== id),
+            };
+          }
+        } else {
+          rootIds = rootIds.filter((rId) => rId !== id);
+        }
+
+        const deletedIds = new Set<string>();
+        const stack = [id];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          if (deletedIds.has(cur)) continue; // cycle protection
+          deletedIds.add(cur);
+          const item = items[cur];
+          if (item?.children) {
+            for (const child of item.children) {
+              if (!deletedIds.has(child)) stack.push(child);
+            }
+          }
+          delete items[cur];
+        }
+
+        const selected = new Set(store.selectedItems());
+        const expanded = new Set(store.expandedItems());
+        let selectedChanged = false;
+        for (const dId of deletedIds) {
+          if (selected.delete(dId)) selectedChanged = true;
+          expanded.delete(dId);
+        }
+
+        const focusedItemId =
+          store.focusedItemId() && deletedIds.has(store.focusedItemId()!)
+            ? null
+            : store.focusedItemId();
+        const editingItemId =
+          store.editingItemId() && deletedIds.has(store.editingItemId()!)
+            ? null
+            : store.editingItemId();
+
+        patchState(store, {
+          items,
+          rootIds,
+          selectedItems: selectedChanged ? selected : store.selectedItems(),
+          expandedItems: expanded,
+          focusedItemId,
+          editingItemId,
+        });
+        return true;
+      },
+
+      moveItem(draggedId: string, targetId: string, position: DragPosition): boolean {
+        if (!position) return false;
+        const current = store.items();
+        if (!current[draggedId] || !current[targetId] || draggedId === targetId) return false;
+        if (isLocked(draggedId)) return false;
+        if (position === 'inside' && isLocked(targetId)) return false;
+        if (position !== 'inside') {
+          const parents = store.parentMap();
+          const destParentId = parents[targetId];
+          if (destParentId && isLocked(destParentId)) return false;
+        }
+
+        // Cycle/descendant prevention with visited guard.
+        const isDescendant = (parent: string, child: string): boolean => {
+          const visited = new Set<string>();
+          const stack = [parent];
+          while (stack.length) {
+            const cur = stack.pop()!;
+            if (visited.has(cur)) continue;
+            visited.add(cur);
+            const item = current[cur];
+            if (!item?.children) continue;
+            if (item.children.includes(child)) return true;
+            for (const c of item.children) stack.push(c);
+          }
+          return false;
+        };
+        if (isDescendant(draggedId, targetId)) return false;
+
+        const items = { ...current };
+        let rootIds = store.rootIds();
+        const parents = store.parentMap();
+        const sourceParentId = parents[draggedId];
+
+        if (sourceParentId) {
+          const sourceParent = items[sourceParentId];
+          if (sourceParent?.children) {
+            items[sourceParentId] = {
+              ...sourceParent,
+              children: sourceParent.children.filter((cId) => cId !== draggedId),
+            };
+          }
+        } else {
+          rootIds = rootIds.filter((cId) => cId !== draggedId);
+        }
+
+        let expandedNext: Set<string> | null = null;
+        if (position === 'inside') {
+          const target = items[targetId];
+          if (!target || !target.isFolder) return false;
+          const children = target.children ? [...target.children] : [];
+          children.unshift(draggedId);
+          items[targetId] = { ...target, children };
+          expandedNext = new Set(store.expandedItems());
+          expandedNext.add(targetId);
+        } else {
+          const destParentId = parents[targetId];
+          if (destParentId) {
+            const destParent = items[destParentId];
+            if (destParent?.children) {
+              const children = [...destParent.children];
+              const idx = children.indexOf(targetId);
+              const insertIdx = position === 'before' ? idx : idx + 1;
+              children.splice(insertIdx, 0, draggedId);
+              items[destParentId] = { ...destParent, children };
+            }
+          } else {
+            rootIds = [...rootIds];
+            const idx = rootIds.indexOf(targetId);
+            const insertIdx = position === 'before' ? idx : idx + 1;
+            rootIds.splice(insertIdx, 0, draggedId);
+          }
+        }
+
+        patchState(store, {
+          items,
+          rootIds,
+          focusedItemId: draggedId,
+          ...(expandedNext ? { expandedItems: expandedNext } : {}),
+          draggedItemId: null,
+        });
+        return true;
+      },
+
+      setDraggedItemId(draggedItemId: string | null) {
+        if (store.draggedItemId() === draggedItemId) return;
+        patchState(store, { draggedItemId });
+      },
+
+      // --- Public Accessors for External Integrations (e.g., Playground) ---
+      getItem(id: string): NgxTreeItem | undefined {
+        return store.items()[id];
+      },
+      getParentId(id: string): string | null {
+        return store.parentMap()[id] ?? null;
+      },
+      getRootIds(): string[] {
+        return store.rootIds();
+      },
+      getAllItemsAsRecord(): Record<string, NgxTreeItem> {
+        return store.items();
+      },
+    };
+  })
+);

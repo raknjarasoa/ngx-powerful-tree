@@ -19,8 +19,6 @@ describe('NgxPowerfulTree', () => {
     await fixture.whenStable();
   });
 
-  const getItemsMap = () => (component.store as any)['itemsMap'];
-
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -59,7 +57,7 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
-    expect(getItemsMap().get('folder-1')).toBeDefined();
+    expect(component.store.items()['folder-1']).toBeDefined();
   });
 
   it('should propagate locked property from parent folder to children recursively', async () => {
@@ -107,7 +105,7 @@ describe('NgxPowerfulTree', () => {
     component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
     fixture.detectChanges();
-    expect(getItemsMap().get('locked-file')).toBeDefined();
+    expect(component.store.items()['locked-file']).toBeDefined();
   });
 
   it('should expose a reload() method that swaps the dataset and clears state', async () => {
@@ -128,8 +126,8 @@ describe('NgxPowerfulTree', () => {
     component.reload([{ id: 'c', name: 'C', isFolder: false }]);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(getItemsMap().get('a')).toBeUndefined();
-    expect(getItemsMap().get('c')).toBeDefined();
+    expect(component.store.items()['a']).toBeUndefined();
+    expect(component.store.items()['c']).toBeDefined();
     expect(component.store.selectedItems().size).toBe(0);
     expect(component.store.expandedItems().size).toBe(0);
   });
@@ -153,7 +151,7 @@ describe('NgxPowerfulTree', () => {
     component.store.setExpanded('folder-1', true);
     fixture.detectChanges();
 
-    component.store.draggedItemId.set('file-1');
+    component.store.setDraggedItemId('file-1');
     fixture.detectChanges();
 
     const rowElements = fixture.nativeElement.querySelectorAll('.ngx-tree-row-wrapper');
