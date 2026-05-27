@@ -31,8 +31,12 @@ export class NgxTreeStore {
   readonly selectableTypes = signal<SelectableTypes>('files');
   readonly searchPredicate = signal<NgxTreeSearchPredicate | null>(null);
 
-  // Minimal drag state tracked purely to know who is dragging, no 'over' state
+  // Minimal drag state tracked purely to know who is dragging
   readonly draggedItemId = signal<string | null>(null);
+
+  // Centralized drag over state to prevent row-level DOM thrashing
+  readonly dragTargetId = signal<string | null>(null);
+  readonly dragPosition = signal<DragPosition | null>(null);
 
   // Bump this version signal whenever itemsMap/parentsMap/rootIds structurally change
   private readonly version = signal(0);
@@ -181,13 +185,17 @@ export class NgxTreeStore {
     this.focusedItemId.set(null);
     this.editingItemId.set(null);
     this.searchQuery.set('');
-    this.draggedItemId.set(null);
+    this.clearDragState();
   }
 
   toggleExpand(id: string) {
     this.expandedItems.update((set) => {
       const next = new Set(set);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
@@ -195,7 +203,11 @@ export class NgxTreeStore {
   setExpanded(id: string, isExpanded: boolean) {
     this.expandedItems.update((set) => {
       const next = new Set(set);
-      isExpanded ? next.add(id) : next.delete(id);
+      if (isExpanded) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
       return next;
     });
   }
@@ -281,7 +293,11 @@ export class NgxTreeStore {
     if (parentId === null) {
       this.rootIds.update((ids) => {
         const next = [...ids];
-        itemToStore.isFolder ? next.unshift(newItem.id) : next.push(newItem.id);
+        if (itemToStore.isFolder) {
+          next.unshift(newItem.id);
+        } else {
+          next.push(newItem.id);
+        }
         return next;
       });
     } else {
@@ -292,13 +308,29 @@ export class NgxTreeStore {
         return false;
       }
       parent.children = parent.children || [];
-      itemToStore.isFolder ? parent.children.unshift(newItem.id) : parent.children.push(newItem.id);
+      if (itemToStore.isFolder) {
+        parent.children.unshift(newItem.id);
+      } else {
+        parent.children.push(newItem.id);
+      }
       this.setExpanded(parentId, true);
     }
 
     this.version.update((v) => v + 1);
     this.focusedItemId.set(newItem.id);
     return true;
+  }
+
+  setDragState(draggedId: string | null, targetId: string | null = null, position: DragPosition | null = null) {
+    this.draggedItemId.set(draggedId);
+    this.dragTargetId.set(targetId);
+    this.dragPosition.set(position);
+  }
+
+  clearDragState() {
+    this.draggedItemId.set(null);
+    this.dragTargetId.set(null);
+    this.dragPosition.set(null);
   }
 
   deleteItem(id: string): boolean {
@@ -353,7 +385,12 @@ export class NgxTreeStore {
     if (editing && deletedIds.has(editing)) this.editingItemId.set(null);
 
     const dragged = this.draggedItemId();
-    if (dragged && deletedIds.has(dragged)) this.draggedItemId.set(null);
+    if (dragged && deletedIds.has(dragged)) this.clearDragState();
+    const target = this.dragTargetId();
+    if (target && deletedIds.has(target)) {
+        this.dragTargetId.set(null);
+        this.dragPosition.set(null);
+    }
 
     this.version.update((v) => v + 1);
     return true;

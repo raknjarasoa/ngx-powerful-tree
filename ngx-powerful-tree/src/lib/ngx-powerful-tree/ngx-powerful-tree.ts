@@ -485,9 +485,11 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
   }
 
-  // --- Auto-scroll during drag-and-drop (runs outside Angular zone) ---
+  // --- Centralized Drag & Drop and Auto-scroll (runs outside Angular zone) ---
   private scrollSpeed = 15;
   private animationFrameId: number | null = null;
+  private lastDragMouseY: number | null = null;
+  private dragRafId: number | null = null;
 
   ngAfterViewInit() {
     if (!isPlatformBrowser(this.platformId)) {
@@ -500,46 +502,157 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     this.ngZone.runOutsideAngular(() => {
       const handleDragOver = (event: DragEvent) => {
+        if (this.readOnly()) return;
+
         const draggedId = this.store.draggedItemId();
         if (!draggedId) {
           this.stopAutoScroll();
           return;
         }
 
-        const rect = viewportEl.getBoundingClientRect();
-        const mouseY = event.clientY;
+        event.preventDefault(); // allow drop
+        this.lastDragMouseY = event.clientY;
 
+        if (this.dragRafId === null) {
+            this.dragRafId = requestAnimationFrame(() => {
+                this.dragRafId = null;
+                this.evaluateDragPosition();
+            });
+        }
+
+        const rect = viewportEl.getBoundingClientRect();
         const topThreshold = rect.top + 40;
         const bottomThreshold = rect.bottom - 40;
 
-        if (mouseY < topThreshold) {
-          const intensity = Math.max(0, (topThreshold - mouseY) / 40);
+        if (this.lastDragMouseY < topThreshold) {
+          const intensity = Math.max(0, (topThreshold - this.lastDragMouseY) / 40);
           this.startAutoScroll(viewportEl, -1, intensity);
-        } else if (mouseY > bottomThreshold) {
-          const intensity = Math.max(0, (mouseY - bottomThreshold) / 40);
+        } else if (this.lastDragMouseY > bottomThreshold) {
+          const intensity = Math.max(0, (this.lastDragMouseY - bottomThreshold) / 40);
           this.startAutoScroll(viewportEl, 1, intensity);
         } else {
           this.stopAutoScroll();
         }
       };
 
-      const handleDragLeaveOrEnd = () => {
+      const handleDragLeave = (event: DragEvent) => {
+        // Only clear drag over if we leave the viewport itself, not a child row
+        const rect = viewportEl.getBoundingClientRect();
+        if (
+            event.clientX <= rect.left ||
+            event.clientX >= rect.right ||
+            event.clientY <= rect.top ||
+            event.clientY >= rect.bottom
+        ) {
+            this.ngZone.run(() => {
+                this.store.setDragState(this.store.draggedItemId(), null, null);
+            });
+        }
+      };
+
+      const handleDrop = (event: DragEvent) => {
+        if (this.readOnly()) return;
+        event.preventDefault();
         this.stopAutoScroll();
+
+        // Evaluate final position exactly when dropped to ensure accuracy
+        this.lastDragMouseY = event.clientY;
+        this.evaluateDragPosition();
+
+        const draggedId = this.store.draggedItemId();
+        const targetId = this.store.dragTargetId();
+        const position = this.store.dragPosition();
+
+        if (draggedId && targetId && position && draggedId !== targetId) {
+            this.ngZone.run(() => {
+                if (this.store.moveItem(draggedId, targetId, position)) {
+                    this.itemMoved.emit({ draggedId, targetId, position });
+                }
+                this.store.clearDragState();
+            });
+        } else {
+            this.ngZone.run(() => {
+                this.store.clearDragState();
+            });
+        }
+
+        this.lastDragMouseY = null;
+      };
+
+      const handleDragEnd = () => {
+        this.stopAutoScroll();
+        this.lastDragMouseY = null;
       };
 
       viewportEl.addEventListener('dragover', handleDragOver);
-      viewportEl.addEventListener('dragleave', handleDragLeaveOrEnd);
-      viewportEl.addEventListener('drop', handleDragLeaveOrEnd);
-      document.addEventListener('dragend', handleDragLeaveOrEnd);
+      viewportEl.addEventListener('dragleave', handleDragLeave);
+      viewportEl.addEventListener('drop', handleDrop);
+      document.addEventListener('dragend', handleDragEnd);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
-        viewportEl.removeEventListener('dragleave', handleDragLeaveOrEnd);
-        viewportEl.removeEventListener('drop', handleDragLeaveOrEnd);
-        document.removeEventListener('dragend', handleDragLeaveOrEnd);
+        viewportEl.removeEventListener('dragleave', handleDragLeave);
+        viewportEl.removeEventListener('drop', handleDrop);
+        document.removeEventListener('dragend', handleDragEnd);
         this.stopAutoScroll();
+        if (this.dragRafId !== null) cancelAnimationFrame(this.dragRafId);
       });
     });
+  }
+
+  private evaluateDragPosition() {
+      if (this.lastDragMouseY === null) return;
+      const vpt = this.viewport();
+      if (!vpt) return;
+
+      const viewportEl = vpt.elementRef.nativeElement;
+      const draggedId = this.store.draggedItemId();
+      if (!draggedId) return;
+
+      const rect = viewportEl.getBoundingClientRect();
+      // Calculate absolute scroll offset from top
+      const scrollTop = viewportEl.scrollTop;
+      const relativeYToViewport = this.lastDragMouseY - rect.top;
+      const absoluteY = scrollTop + relativeYToViewport;
+
+      const itemSize = this.itemSize();
+      const itemIndex = Math.floor(absoluteY / itemSize);
+
+      const { list } = this.store.flattenedStructure();
+      if (itemIndex < 0 || itemIndex >= list.length) {
+          if (this.store.dragTargetId() !== null) {
+              this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
+          }
+          return;
+      }
+
+      const targetItem = list[itemIndex];
+      const targetId = targetItem.id;
+
+      if (targetId === draggedId || targetItem.locked) {
+          if (this.store.dragTargetId() !== null) {
+              this.ngZone.run(() => this.store.setDragState(draggedId, null, null));
+          }
+          return;
+      }
+
+      const relativeYToRow = absoluteY % itemSize;
+      let position: DragPosition = 'inside';
+
+      if (targetItem.isFolder) {
+        if (relativeYToRow < itemSize * 0.25) position = 'before';
+        else if (relativeYToRow > itemSize * 0.75 && !targetItem.expanded) position = 'after';
+        else position = 'inside';
+      } else {
+        position = relativeYToRow < itemSize * 0.5 ? 'before' : 'after';
+      }
+
+      // Avoid redundant signals updates
+      if (this.store.dragTargetId() !== targetId || this.store.dragPosition() !== position) {
+          this.ngZone.run(() => {
+              this.store.setDragState(draggedId, targetId, position);
+          });
+      }
   }
 
   private startAutoScroll(element: HTMLElement, direction: number, intensity: number) {
@@ -548,6 +661,9 @@ export class NgxPowerfulTree implements AfterViewInit {
     const scrollFn = () => {
       const amount = direction * this.scrollSpeed * intensity;
       element.scrollTop += amount;
+      // Because we scrolled, the item under the stationary mouse might have changed.
+      // Re-evaluate drag position based on new scrollTop
+      this.evaluateDragPosition();
       this.animationFrameId = requestAnimationFrame(scrollFn);
     };
 
