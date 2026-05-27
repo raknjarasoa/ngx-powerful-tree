@@ -1,3 +1,9 @@
+# [2.4.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.3.0...v2.4.0) (2026-05-27)
+
+### Features
+
+- add FolderTreeComponent and full-page layout, and update tree store and types to support programmatic selection and expansion ([#8](https://github.com/raknjarasoa/ngx-powerful-tree/issues/8)) ([29cd32b](https://github.com/raknjarasoa/ngx-powerful-tree/commit/29cd32b31ff20c531fb687ce2f1c3679ffa0ca60))
+
 # [2.3.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.2.0...v2.3.0) (2026-05-27)
 
 ### Features
