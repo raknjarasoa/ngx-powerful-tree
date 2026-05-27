@@ -27,7 +27,7 @@ import {
   DragPosition,
   NgxTreeItem,
   NgxTreeNode,
-  NgxTreeProxyItem,
+  NgxTreeSearchPredicate,
   NgxTreeStructuralItem,
   SelectableTypes,
 } from '../ngx-tree.types';
@@ -111,6 +111,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   selectableTypes = input<SelectableTypes>('files');
   searchDebounceMs = input<number>(120);
   readOnly = input<boolean>(false);
+  searchPredicate = input<NgxTreeSearchPredicate | null>(null);
   /**
    * Per-inline-action availability. Omitted keys default to `true`, so
    * `[actions]="{ delete: false }"` keeps the other actions enabled.
@@ -228,6 +229,14 @@ export class NgxPowerfulTree implements AfterViewInit {
       const types = this.selectableTypes();
       untracked(() => {
         this.store.setSelectableTypes(types);
+      });
+    });
+
+    // 7. Sync searchPredicate input to the store.
+    effect(() => {
+      const predicate = this.searchPredicate();
+      untracked(() => {
+        this.store.searchPredicate.set(predicate);
       });
     });
   }

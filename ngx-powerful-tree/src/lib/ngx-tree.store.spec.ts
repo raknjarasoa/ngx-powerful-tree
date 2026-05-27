@@ -258,4 +258,39 @@ describe('NgxTreeStore', () => {
     expect(store.selectedItems().size).toBe(0);
     expect(store.searchQuery()).toBe('');
   });
+
+  it('should support custom search predicate', () => {
+    const customItems: Record<string, NgxTreeItem> = {
+      'item-1': {
+        id: 'item-1',
+        name: 'Item One',
+        isFolder: false,
+        data: { description: 'Special Tag A' },
+      },
+      'item-2': {
+        id: 'item-2',
+        name: 'Item Two',
+        isFolder: false,
+        data: { description: 'Special Tag B' },
+      },
+    };
+    store.setItems(customItems, ['item-1', 'item-2']);
+
+    store.searchPredicate.set((item, query) => {
+      const description = (item.data as any)?.description;
+      return (
+        typeof description === 'string' && description.toLowerCase().includes(query.toLowerCase())
+      );
+    });
+
+    store.setSearchQuery('Tag A');
+    let list = store.flattenedStructure().list;
+
+    expect(list.length).toBe(1);
+    expect(list[0].id).toBe('item-1');
+
+    store.setSearchQuery('One');
+    list = store.flattenedStructure().list;
+    expect(list.length).toBe(0);
+  });
 });

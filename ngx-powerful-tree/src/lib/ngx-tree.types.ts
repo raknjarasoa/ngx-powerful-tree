@@ -69,6 +69,8 @@ export interface NgxTreeProxyItem<T = any> extends NgxTreeStructuralItem<T> {
 
 export type SelectableTypes = 'files' | 'folders' | 'all';
 
+export type NgxTreeSearchPredicate<T = any> = (item: NgxTreeItem<T>, query: string) => boolean;
+
 export interface NgxTreeState<T = any> {
   items: Record<string, NgxTreeItem<T>>;
   rootIds: string[];
@@ -80,3 +82,5 @@ export interface NgxTreeState<T = any> {
   dragState: DragState;
   selectableTypes: SelectableTypes;
 }
+
+export const OTHER_USERS_ROOT_ID = 'other-users-root';

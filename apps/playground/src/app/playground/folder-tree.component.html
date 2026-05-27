@@ -1,0 +1,151 @@
+<div class="popover-tree-container">
+  <!-- Top Row: Search input + New Folder Button -->
+  <div class="top-bar-row">
+    <div class="search-wrapper">
+      <i class="fas fa-search search-icon"></i>
+      <input
+        type="text"
+        placeholder="Search by name or description..."
+        [value]="searchQuery()"
+        (input)="onSearchChange($event)"
+        class="search-input"
+      />
+      @if (searchQuery()) {
+        <button class="clear-search" (click)="searchQuery.set('')" title="Clear search">×</button>
+      }
+    </div>
+    <button
+      class="new-folder-btn"
+      (click)="primaryTree.addRootFolder()"
+      title="Create a new root folder"
+    >
+      <i class="fas fa-folder-plus"></i> New Folder
+    </button>
+  </div>
+
+  <!-- Main Tree Scroll Container -->
+  <div class="tree-scroll-container">
+    <ngx-powerful-tree
+      #primaryTree
+      [nodes]="treeNodes()"
+      [searchQuery]="searchQuery()"
+      [searchPredicate]="searchPredicate"
+      [actions]="primaryActions()"
+      (moveRequested)="onMoveRequested($event)"
+      (itemMoved)="onItemMoved($event)"
+    >
+      <!-- Custom File Template (Well Indented & Clickable) -->
+      <ng-template #fileTemplate let-item>
+        <div class="custom-file-row" (click)="onFileRowClick(item)">
+          <!-- 26px Spacer to align perfectly with expand/collapse folders layout -->
+          <div class="expand-spacer" aria-hidden="true"></div>
+
+          <!-- File Icon -->
+          <span class="file-icon-wrapper" aria-hidden="true">
+            <i [class]="item.icon || 'fas fa-file'"></i>
+          </span>
+
+          <!-- File Text and Description metadata -->
+          <div class="file-info">
+            <span
+              class="file-name"
+              [class.file-name--matched]="item.matchesSearch"
+              [title]="item.name"
+            >
+              {{ item.name }}
+            </span>
+            @if (item.data?.description) {
+              <span class="file-description" [title]="item.data.description">
+                {{ item.data.description }}
+              </span>
+            }
+          </div>
+
+          <!-- Relocate / Move Action Button (For Custom File) -->
+          <div class="file-actions">
+            <button
+              class="action-btn move-btn"
+              (click)="primaryTree.triggerMove(item.id, $event)"
+              title="Move to folder"
+              tabindex="-1"
+            >
+              <i class="fas fa-exchange-alt"></i>
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </ngx-powerful-tree>
+  </div>
+
+  <!-- Relocation picker integrated inline inside the tree container to look perfectly native -->
+  @defer (when isMoveOverlayOpen()) {
+    <div
+      class="overlay-backdrop"
+      [style.display]="isMoveOverlayOpen() ? 'flex' : 'none'"
+      (click)="cancelMove()"
+    >
+      <div class="overlay-modal" (click)="$event.stopPropagation()">
+        <header class="overlay-modal-header">
+          <div class="header-details">
+            <h3>Relocate Item</h3>
+            <p>
+              Move <strong class="moving-item-name">{{ movingItemName() }}</strong> directly to a
+              folder
+            </p>
+          </div>
+          <button class="close-overlay" (click)="cancelMove()" aria-label="Close dialog">×</button>
+        </header>
+
+        <div class="overlay-search-group">
+          <div class="search-wrapper">
+            <i class="fas fa-filter search-icon"></i>
+            <input
+              #overlaySearch
+              type="text"
+              placeholder="Search destination folders..."
+              class="search-input"
+              (input)="overlaySearchQuery.set(overlaySearch.value)"
+              [value]="overlaySearchQuery()"
+            />
+            @if (overlaySearchQuery()) {
+              <button
+                class="clear-search"
+                (click)="overlaySearchQuery.set('')"
+                title="Clear filter"
+              >
+                ×
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Add Root Button between search and tree -->
+        <div class="overlay-root-action-bar">
+          <button
+            class="move-to-root-btn"
+            (click)="onMoveToRoot()"
+            title="Move selected item to the root level"
+          >
+            <i class="fas fa-home"></i> Move to Root Level
+          </button>
+        </div>
+
+        <!-- Displays FOLDERS ONLY clickable, without files -->
+        <div class="overlay-tree-wrapper">
+          <ngx-powerful-tree
+            [nodes]="pickerNodes()"
+            [selectableTypes]="'folders'"
+            [readOnly]="true"
+            [searchQuery]="overlaySearchQuery()"
+            (selectionChanged)="onDestinationSelected($event)"
+          >
+          </ngx-powerful-tree>
+        </div>
+
+        <footer class="overlay-modal-footer">
+          <button class="cancel-btn" (click)="cancelMove()">Cancel</button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

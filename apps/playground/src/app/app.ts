@@ -12,6 +12,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         Home
       </a>
       <a routerLink="/playground" routerLinkActive="active">Playground</a>
+      <a routerLink="/full" routerLinkActive="active">Full Showcase</a>
     </nav>
     <router-outlet />
   `,

@@ -1,16 +1,16 @@
+import { isPlatformBrowser } from '@angular/common';
 import {
+  computed,
+  DestroyRef,
   Directive,
   ElementRef,
   inject,
   input,
-  output,
-  computed,
-  OnInit,
   NgZone,
-  DestroyRef,
+  OnInit,
+  output,
   PLATFORM_ID,
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
 import { NgxTreeStore } from './ngx-tree.store';
 import { DragPosition, NgxTreeStructuralItem } from './ngx-tree.types';
 
@@ -236,11 +236,10 @@ export class NgxTreeRowDirective implements OnInit {
     const draggedId = this.store.draggedItemId();
 
     // Flush any pending rAF so currentPosition is computed before reading it.
-    if (this.dragOverPendingY !== null && draggedId) {
-      this.cancelDragOverRaf();
-      this.processDragOver(this.dragOverPendingY, draggedId);
-    } else {
-      this.cancelDragOverRaf();
+    const pendingY = this.dragOverPendingY;
+    this.cancelDragOverRaf();
+    if (pendingY !== null && draggedId) {
+      this.processDragOver(pendingY, draggedId);
     }
     this.clearDragClasses();
     const position = this.currentPosition;
