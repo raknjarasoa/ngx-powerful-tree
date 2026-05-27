@@ -13,7 +13,7 @@ describe('NgxTreeStore', () => {
   //   - Child A2 (Folder)
   //     - Grandchild A2a (File)
   // Root B (File)
-  const mockItems: Record<string, NgxTreeItem> = {
+  const getMockItems = (): Record<string, NgxTreeItem> => ({
     'root-a': {
       id: 'root-a',
       name: 'Root A Folder',
@@ -29,16 +29,16 @@ describe('NgxTreeStore', () => {
     },
     'grandchild-a2a': { id: 'grandchild-a2a', name: 'Grandchild A2a File', isFolder: false },
     'root-b': { id: 'root-b', name: 'Root B File', isFolder: false },
-  };
+  });
   const mockRootIds = ['root-a', 'root-b'];
 
   beforeEach(() => {
     store = new NgxTreeStore();
-    store.setItems(mockItems, mockRootIds);
+    store.setItems(getMockItems(), mockRootIds);
   });
 
   it('should initialize with flattened visible items of root nodes only when collapsed', () => {
-    const list = store.flattenedVisibleItems();
+    const list = store.flattenedStructure().list;
     expect(list.length).toBe(2);
     expect(list[0].id).toBe('root-a');
     expect(list[0].depth).toBe(0);
@@ -49,7 +49,7 @@ describe('NgxTreeStore', () => {
   it('should expand folders and update flattened visible items', () => {
     store.toggleExpand('root-a');
 
-    let list = store.flattenedVisibleItems();
+    let list = store.flattenedStructure().list;
     // Expected: Root A, Child A1, Child A2 (Collapsed), Root B
     expect(list.length).toBe(4);
     expect(list[0].id).toBe('root-a');
@@ -61,7 +61,7 @@ describe('NgxTreeStore', () => {
 
     // Expand grandchild's folder
     store.toggleExpand('child-a2');
-    list = store.flattenedVisibleItems();
+    list = store.flattenedStructure().list;
     // Expected: Root A, Child A1, Child A2, Grandchild A2a, Root B
     expect(list.length).toBe(5);
     expect(list[3].id).toBe('grandchild-a2a');
@@ -72,7 +72,7 @@ describe('NgxTreeStore', () => {
   it('should support fluid search query and expand ancestor paths', () => {
     store.setSearchQuery('Grandchild');
 
-    const list = store.flattenedVisibleItems();
+    const list = store.flattenedStructure().list;
     // Expected: Root A, Child A2, Grandchild A2a (all expanded automatically)
     // Child A1 and Root B should not match and should not be displayed!
     expect(list.length).toBe(3);
@@ -89,11 +89,11 @@ describe('NgxTreeStore', () => {
 
     store.addItem('root-a', newItem);
 
-    const list = store.flattenedVisibleItems();
+    const list = store.flattenedStructure().list;
     expect(list.length).toBe(5); // Root A, Child A1, Child A2, Child A3, Root B
     expect(list[3].id).toBe('child-a3');
-    expect(store.items()['child-a3']).toBeDefined();
-    expect(store.items()['root-a'].children).toContain('child-a3');
+    expect(store.getItem('child-a3')).toBeDefined();
+    expect(store.getItem('root-a')?.children).toContain('child-a3');
   });
 
   it('should delete item recursively and clean selections', () => {
@@ -106,11 +106,11 @@ describe('NgxTreeStore', () => {
     // Delete Child A2 (containing Grandchild A2a)
     store.deleteItem('child-a2');
 
-    const list = store.flattenedVisibleItems();
+    const list = store.flattenedStructure().list;
     // Expected remaining: Root A, Child A1, Root B
     expect(list.length).toBe(3);
-    expect(store.items()['child-a2']).toBeUndefined();
-    expect(store.items()['grandchild-a2a']).toBeUndefined();
+    expect(store.getItem('child-a2')).toBeUndefined();
+    expect(store.getItem('grandchild-a2a')).toBeUndefined();
     expect(store.selectedItems().has('grandchild-a2a')).toBe(false);
   });
 
@@ -120,7 +120,7 @@ describe('NgxTreeStore', () => {
     // Move Child A1 to be before Root A
     store.moveItem('child-a1', 'root-a', 'before');
 
-    const list = store.flattenedVisibleItems();
+    const list = store.flattenedStructure().list;
     // Expected visible: Child A1 (root), Root A (root, expanded), Child A2 (child), Root B (root)
     expect(list.length).toBe(4);
     expect(list[0].id).toBe('child-a1');
@@ -153,7 +153,7 @@ describe('NgxTreeStore', () => {
       children: [],
     };
     store.addItem('root-a', newChildFolder);
-    expect(store.items()['root-a'].children?.[0]).toBe('new-child-folder');
+    expect(store.getItem('root-a')?.children?.[0]).toBe('new-child-folder');
   });
 
   it('should drop inside an expanded folder and a collapsed folder at the first index', () => {
@@ -161,16 +161,16 @@ describe('NgxTreeStore', () => {
     store.setExpanded('child-a2', true); // Expand child-a2
     // child-a2 children initially has: ['grandchild-a2a']
     store.moveItem('root-b', 'child-a2', 'inside');
-    expect(store.items()['child-a2'].children?.[0]).toBe('root-b'); // Placed at first index
-    expect(store.items()['child-a2'].children?.[1]).toBe('grandchild-a2a');
+    expect(store.getItem('child-a2')?.children?.[0]).toBe('root-b'); // Placed at first index
+    expect(store.getItem('child-a2')?.children?.[1]).toBe('grandchild-a2a');
 
     // 2. Collapsed target folder
     store.setExpanded('root-a', false); // Collapse root-a
     // root-a children initially: ['child-a1', 'child-a2']
     // Let's reset store to make a clean assertion
-    store.setItems(mockItems, mockRootIds);
+    store.setItems(getMockItems(), mockRootIds);
     store.moveItem('root-b', 'root-a', 'inside');
-    const rootAChildren = store.items()['root-a'].children;
+    const rootAChildren = store.getItem('root-a')?.children;
     expect(rootAChildren?.[0]).toBe('root-b'); // Placed at the first index (index 0)
   });
 
@@ -215,7 +215,7 @@ describe('NgxTreeStore', () => {
     };
     store.setItems(lockedItems, ['locked-root']);
     expect(store.deleteItem('child')).toBe(false);
-    expect(store.items()['child']).toBeDefined();
+    expect(store.getItem('child')).toBeDefined();
   });
 
   it('should refuse to rename a locked item and return false', () => {
@@ -226,7 +226,7 @@ describe('NgxTreeStore', () => {
       ['locked-file']
     );
     expect(store.renameItem('locked-file', 'NewName')).toBe(false);
-    expect(store.items()['locked-file'].name).toBe('Locked');
+    expect(store.getItem('locked-file')?.name).toBe('Locked');
   });
 
   it('should refuse to move into a locked target and return false', () => {
@@ -238,7 +238,7 @@ describe('NgxTreeStore', () => {
       ['a', 'b']
     );
     expect(store.moveItem('a', 'b', 'inside')).toBe(false);
-    expect(store.items()['b'].children).toEqual([]);
+    expect(store.getItem('b')?.children).toEqual([]);
   });
 
   it('should refuse duplicate ids on addItem', () => {
@@ -252,8 +252,8 @@ describe('NgxTreeStore', () => {
     store.selectItem('child-a1');
     store.setSearchQuery('something');
     store.reload({ x: { id: 'x', name: 'X', isFolder: false } as NgxTreeItem }, ['x']);
-    expect(store.items()['x']).toBeDefined();
-    expect(store.items()['root-a']).toBeUndefined();
+    expect(store.getItem('x')).toBeDefined();
+    expect(store.getItem('root-a')).toBeUndefined();
     expect(store.expandedItems().size).toBe(0);
     expect(store.selectedItems().size).toBe(0);
     expect(store.searchQuery()).toBe('');

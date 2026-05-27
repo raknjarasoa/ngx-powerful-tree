@@ -396,7 +396,7 @@ export class NgxPowerfulTree implements AfterViewInit {
           this.store.setExpanded(currentItem.id, false);
         } else if (currentItem.parentId) {
           const parentId = currentItem.parentId;
-          const parentIdx = list.findIndex((item) => item.id === parentId);
+          const parentIdx = indexById[parentId] ?? -1;
           if (parentIdx !== -1) {
             this.store.setFocusedItemId(parentId);
             this.scrollToIndex(parentIdx);
@@ -491,8 +491,8 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     this.ngZone.runOutsideAngular(() => {
       const handleDragOver = (event: DragEvent) => {
-        const dragState = this.store.dragState();
-        if (!dragState.draggedItemId) {
+        const draggedId = this.store.draggedItemId();
+        if (!draggedId) {
           this.stopAutoScroll();
           return;
         }
