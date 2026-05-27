@@ -1,3 +1,9 @@
+# [2.3.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.2.0...v2.3.0) (2026-05-27)
+
+### Features
+
+- improve tree layout performance and add benchmarking scripts for store optimization. ([69de56c](https://github.com/raknjarasoa/ngx-powerful-tree/commit/69de56c3e1bd2d602f08e09dae72fcc1216b4dff))
+
 # [2.2.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.1.0...v2.2.0) (2026-05-27)
 
 ### Features
