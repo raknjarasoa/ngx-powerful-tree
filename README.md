@@ -2,13 +2,13 @@
 
 A virtualized Angular tree component with native HTML5 drag-and-drop, fluid
 search, locked subtrees, and folder/file picker modes. Built on
-`@ngrx/signals` and `@angular/cdk/scrolling`. Designed to stay smooth at
+`@angular/cdk/scrolling`. Designed to stay smooth at
 100k+ rows.
 
 ## Installation
 
 ```sh
-npm i ngx-powerful-tree @angular/cdk @ngrx/signals
+npm i ngx-powerful-tree @angular/cdk
 ```
 
 ## Quick start

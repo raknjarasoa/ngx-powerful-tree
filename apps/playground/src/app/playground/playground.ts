@@ -69,7 +69,7 @@ export class PlaygroundComponent {
     const itemId = this.movingItemId();
     if (!itemId) return '';
     const tree = this.primaryTree();
-    return tree?.store.items()[itemId]?.name ?? '';
+    return tree?.store.getItem(itemId)?.name ?? '';
   });
 
   constructor() {
@@ -229,11 +229,10 @@ export class PlaygroundComponent {
         const tree = this.primaryTree();
         if (!tree) return;
         tree.store.selectItem(item80Id, false);
-        const parentMap = tree.store.parentMap();
-        let parentId = parentMap[item80Id];
+        let parentId = tree.store.getParentId(item80Id);
         while (parentId) {
           tree.store.setExpanded(parentId, true);
-          parentId = parentMap[parentId];
+          parentId = tree.store.getParentId(parentId);
         }
       }, 100);
     });
@@ -278,7 +277,7 @@ export class PlaygroundComponent {
   onMoveRequested(id: string) {
     const tree = this.primaryTree();
     if (!tree) return;
-    this.pickerNodes.set(expandItems(tree.store.items(), tree.store.rootIds()));
+    this.pickerNodes.set(expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds()));
     this.movingItemId.set(id);
     this.targetFolderId.set(null);
     this.overlaySearchQuery.set('');
