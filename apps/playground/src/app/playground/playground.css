@@ -414,8 +414,8 @@ body {
   --ngx-tree-container-border: var(--pg-border);
   --ngx-tree-container-border-radius: 8px;
   --ngx-tree-font-size-base: 0.92rem;
-  --ngx-tree-row-height-min: 38px;
-  --ngx-tree-row-padding-base: 5px 12px;
+  --ngx-tree-row-height-min: 40px;
+  --ngx-tree-row-padding-base: 6px 12px;
 }
 
 /* Force selected items to use white text for visibility */
