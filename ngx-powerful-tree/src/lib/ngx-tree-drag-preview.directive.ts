@@ -13,7 +13,8 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
-const TRANSPARENT_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const TRANSPARENT_GIF =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 @Directive({
   selector: '[ngxTreeDragPreview]',
@@ -70,7 +71,9 @@ export class NgxTreeDragPreviewDirective<T = unknown> implements OnInit {
 
     // We expect the template to have a single root element (or we take the first HTMLElement)
     if (!this.viewRef) return;
-    this.previewElement = this.viewRef.rootNodes.find(node => node.nodeType === Node.ELEMENT_NODE) as HTMLElement;
+    this.previewElement = this.viewRef.rootNodes.find(
+      (node) => node.nodeType === Node.ELEMENT_NODE
+    ) as HTMLElement;
 
     if (this.previewElement) {
       // 3. Apply styles
@@ -82,7 +85,7 @@ export class NgxTreeDragPreviewDirective<T = unknown> implements OnInit {
         top: '0',
         left: '0',
         margin: '0',
-        transform: `translate3d(${e.clientX + 15}px, ${e.clientY + 15}px, 0)`
+        transform: `translate3d(${e.clientX + 15}px, ${e.clientY + 15}px, 0)`,
       });
 
       document.body.appendChild(this.previewElement);

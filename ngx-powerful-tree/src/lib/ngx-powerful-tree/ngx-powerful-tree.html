@@ -166,6 +166,8 @@
 
 <ng-template #defaultDragPreview let-item>
   <div class="ngx-tree-drag-preview">
-    <ng-container *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item }"></ng-container>
+    <ng-container
+      *ngTemplateOutlet="itemTemplate() || (item.isFolder ? defaultTemplate : (fileTemplate() || defaultTemplate)); context: { $implicit: item }"
+    ></ng-container>
   </div>
 </ng-template>
