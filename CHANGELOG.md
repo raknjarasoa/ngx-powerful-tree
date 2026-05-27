@@ -1,3 +1,9 @@
+# [2.1.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.0.0...v2.1.0) (2026-05-27)
+
+### Features
+
+- release opaque drag ghost Re-release; PR [#6](https://github.com/raknjarasoa/ngx-powerful-tree/issues/6) merged with a non-conventional commit message that semantic-release could not parse. ([8742b7b](https://github.com/raknjarasoa/ngx-powerful-tree/commit/8742b7b3f46b33d24677bd5517144319bb2ae17e))
+
 # [2.0.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v1.1.0...v2.0.0) (2026-05-26)
 
 - feat(tree)!: accept nested NgxTreeNode[] via a single nodes input ([d447c0e](https://github.com/raknjarasoa/ngx-powerful-tree/commit/d447c0e2a230182f412d5d3c5e74061d2f902042))
