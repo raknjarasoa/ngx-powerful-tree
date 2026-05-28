@@ -182,14 +182,18 @@ The store is exposed as `tree.store`, so consumers can imperatively call
 - Selection survives drag-and-drop moves
 - Clear via `Escape`
 
-### Focus and keyboard navigation (WAI-ARIA tree pattern)
+### Focus and keyboard
 
 - `role="tree"` on viewport, `role="treeitem"` on rows
 - `aria-expanded`, `aria-selected`, `aria-level` on each row
-- Arrow keys, Space, Enter, F2, Delete, Escape, Home, End
-- Single-letter typeahead with wrap-around
-- Auto-scroll keeps focused item visible
-- Roving `tabindex`
+- Roving `tabindex` so native browser focus moves between rows
+- Component-level keys: `Space` / `Enter` (select or toggle expand),
+  `F2` (rename), `Escape` (clear selection)
+- Rename input keys: `Enter` (save), `Escape` (cancel)
+- Arrow-key navigation, `Home`/`End`, `Delete`, and typeahead were
+  intentionally removed to keep the library minimal — consumers can
+  reimplement those by listening to keydown on their host and calling
+  `store.setFocusedItemId`, `store.selectItem`, etc.
 
 ### Search
 

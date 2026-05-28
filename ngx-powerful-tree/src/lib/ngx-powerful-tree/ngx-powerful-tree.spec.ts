@@ -49,19 +49,6 @@ describe('NgxPowerfulTree', () => {
     expect(component.store.editingItemId()).toBeNull();
   });
 
-  it('should not allow deleting items when readOnly is true', async () => {
-    fixture.componentRef.setInput('readOnly', true);
-    component.reload([{ id: 'folder-1', name: 'Folder 1', isFolder: true, children: [] }]);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    component.store.setFocusedItemId('folder-1');
-    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
-
-    fixture.detectChanges();
-    expect(getItemsMap().get('folder-1')).toBeDefined();
-  });
-
   it('should propagate locked property from parent folder to children recursively', async () => {
     component.reload([
       {
@@ -96,18 +83,6 @@ describe('NgxPowerfulTree', () => {
 
     fixture.detectChanges();
     expect(component.store.editingItemId()).toBeNull();
-  });
-
-  it('should block deleting locked items via Delete keydown', async () => {
-    component.reload([{ id: 'locked-file', name: 'Locked File', isFolder: false, locked: true }]);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    component.store.setFocusedItemId('locked-file');
-    component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
-
-    fixture.detectChanges();
-    expect(getItemsMap().get('locked-file')).toBeDefined();
   });
 
   it('should expose a reload() method that swaps the dataset and clears state', async () => {

@@ -79,7 +79,7 @@ function generateNodeId(): string {
     for (const b of buf) hex += b.toString(16).padStart(2, '0');
     return `node-${hex}`;
   }
-  return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `node-${performance.now().toString(36).replace('.', '')}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 @Component({

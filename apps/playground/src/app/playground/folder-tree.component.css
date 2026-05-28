@@ -107,6 +107,11 @@
   display: block;
   height: 100%;
   --ngx-tree-min-height: 400px;
+  /* Custom file template is two lines (name + description). Library row CSS
+     is `height: var(--ngx-tree-row-min-height); overflow: hidden;`, so the
+     row min-height MUST match [itemSize]="48" above — otherwise the second
+     line gets clipped and the virtual scroll stride drifts. */
+  --ngx-tree-row-height-min: 48px;
 }
 
 /* Custom File Template Styles */

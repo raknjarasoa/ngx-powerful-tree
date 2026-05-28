@@ -198,11 +198,13 @@
    ========================================================================== */
 
 .ngx-tree-row-wrapper {
-  /* Fixed height (not min-height + auto) is mandatory for virtual scroll
-     and centralized math-based drag hit-testing. The tree computes the
-     hovered row from scrollTop+clientY / itemSize — any per-row drift
-     misaligns drop targets. Use a custom template at the same itemSize
-     if you need taller rows; do not switch this back to auto. */
+  /* Fixed height (not min-height + auto) is mandatory: CDK virtual scroll
+     allocates exactly [itemSize] pixels per row. Without `overflow: hidden`,
+     custom templates can push the wrapper taller, drifting visuals from the
+     virtual scroll stride. Without the fixed height, any class toggled
+     during drag that affects layout (e.g. switching from outline to border)
+     would shift other rows. Set [itemSize] to match your custom template
+     and override --ngx-tree-row-height-min so the row matches itemSize. */
   height: var(--ngx-tree-row-min-height);
   overflow: hidden;
 }
@@ -228,10 +230,10 @@
 }
 
 /* Dragging Opacity and Dotted Outline.
-   `outline` (not `border`) is mandatory: a border adds 2px to the box
-   model, breaking the fixed-itemSize contract that CDK virtual scroll and
-   the centralized drag math depend on. `outline-offset: -1px` keeps the
-   ring visually inside the row. */
+   `outline` (not `border`) is mandatory: a border adds 2 px to the box
+   model, breaking the fixed `[itemSize]` contract CDK virtual scroll
+   relies on. `outline-offset: -1px` keeps the ring visually inside the
+   row so it doesn't clip against neighbours. */
 .ngx-tree-row-wrapper.ngx-tree-row--dragging {
   opacity: 0.5;
   outline: 1px dashed var(--ngx-tree-action-color);
