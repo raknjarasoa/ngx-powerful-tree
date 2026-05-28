@@ -159,6 +159,16 @@ export class NgxTreeStore {
     return false;
   }
 
+  isDescendantOf(childId: string, parentId: string): boolean {
+    if (childId === parentId) return true;
+    let curr = this.parentsMap.get(childId);
+    while (curr !== undefined && curr !== null) {
+      if (curr === parentId) return true;
+      curr = this.parentsMap.get(curr);
+    }
+    return false;
+  }
+
   setItems(itemsRecord: Record<string, NgxTreeItem>, rootIds: string[]) {
     this.itemsMap.clear();
     this.parentsMap.clear();

@@ -531,12 +531,26 @@ export class NgxPowerfulTree implements AfterViewInit {
         this.maybeWarnItemSizeMismatch(viewportEl, this.itemSize());
         this.updateAutoScroll(viewportEl, event.clientY);
       };
-      const stopScroll = () => this.stopAutoScroll();
+      const handleDragLeave = (event: DragEvent) => {
+        const related = event.relatedTarget as Node | null;
+        if (!related || !viewportEl.contains(related)) {
+          this.stopAutoScroll();
+        }
+      };
+      const handleWindowDragEnd = () => {
+        if (this.store.draggedItemId()) {
+          this.store.clearDragState();
+        }
+      };
 
       viewportEl.addEventListener('dragover', handleDragOver);
+      viewportEl.addEventListener('dragleave', handleDragLeave);
+      window.addEventListener('dragend', handleWindowDragEnd);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
+        viewportEl.removeEventListener('dragleave', handleDragLeave);
+        window.removeEventListener('dragend', handleWindowDragEnd);
         this.stopAutoScroll();
       });
     });
@@ -547,13 +561,15 @@ export class NgxPowerfulTree implements AfterViewInit {
     const row = viewportEl.querySelector<HTMLElement>('.ngx-tree-row-wrapper');
     if (!row) return;
     const measured = row.getBoundingClientRect().height;
-    if (measured > 0 && Math.abs(measured - itemSize) > 1) {
+    if (measured > 0) {
       this.itemSizeWarned = true;
-      console.warn(
-        `[ngx-powerful-tree] Rendered row height (${measured}px) does not match [itemSize] (${itemSize}px). ` +
-          `Virtual scroll requires a fixed itemSize. Either set [itemSize] to match your custom template ` +
-          `height, or override --ngx-tree-row-height-min so the row matches itemSize.`
-      );
+      if (Math.abs(measured - itemSize) > 1) {
+        console.warn(
+          `[ngx-powerful-tree] Rendered row height (${measured}px) does not match [itemSize] (${itemSize}px). ` +
+            `Virtual scroll requires a fixed itemSize. Either set [itemSize] to match your custom template ` +
+            `height, or override --ngx-tree-row-height-min so the row matches itemSize.`
+        );
+      }
     }
   }
 

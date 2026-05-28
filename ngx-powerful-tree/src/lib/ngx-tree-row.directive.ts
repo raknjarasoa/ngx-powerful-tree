@@ -178,6 +178,8 @@ export class NgxTreeRowDirective implements OnInit {
     const draggedId = this.store.draggedItemId();
     if (!draggedId || draggedId === this.item().id) return;
 
+    if (this.store.isDescendantOf(this.item().id, draggedId)) return;
+
     event.preventDefault(); // allow drop
 
     // Use the row's own rect (one element, not the whole viewport). Modern
@@ -191,7 +193,11 @@ export class NgxTreeRowDirective implements OnInit {
     let position: DragPosition;
     if (this.item().isFolder) {
       if (relativeY < height * 0.25) position = 'before';
-      else if (relativeY > height * 0.75 && !this.item().expanded) position = 'after';
+      else if (
+        relativeY > height * 0.75 &&
+        (!this.item().expanded || !this.item().hasVisibleChildren)
+      )
+        position = 'after';
       else position = 'inside';
     } else {
       position = relativeY < height * 0.5 ? 'before' : 'after';
