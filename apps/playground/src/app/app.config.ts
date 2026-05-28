@@ -1,7 +1,7 @@
 import {
   ApplicationConfig,
   provideBrowserGlobalErrorListeners,
-  provideZonelessChangeDetection,
+  provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { appRoutes } from './app.routes';
@@ -12,7 +12,7 @@ import Aura from '@primeuix/themes/aura';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZonelessChangeDetection(),
+    provideZoneChangeDetection({ eventCoalescing: true }),
     provideClientHydration(withEventReplay()),
     provideBrowserGlobalErrorListeners(),
     provideRouter(appRoutes),
