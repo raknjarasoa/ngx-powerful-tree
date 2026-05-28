@@ -265,7 +265,7 @@ The store is exposed as `tree.store`, so consumers can imperatively call
    stationary cursor, the browser naturally fires `dragover` on whichever
    row is now under it — no central re-evaluation needed.
 8. If the cursor lingers on a collapsed folder's "inside" zone for 800 ms,
-   the row uses a timestamp diff (`Date.now() - hoverStartedAt`) to fire
+   the row uses a timestamp diff (`performance.now() - hoverStartedAt`) to fire
    the spring-load expansion. No setTimeout, no timer id — cancellation
    is automatic when the cursor leaves and resets the timestamp.
 9. On `drop`, the row reads the current store state, calls
@@ -358,7 +358,7 @@ example, the pipeline was rewritten around the following principles:
    result changed). At native ~60 Hz, it's well within budget.
 
 3. **Spring-loaded folder expansion uses a timestamp diff, not setTimeout.**
-   The row records `Date.now()` on the first hover. Each subsequent
+   The row records `performance.now()` on the first hover. Each subsequent
    `dragover` checks `now - hoverStartedAt > 800`. Cancellation is
    automatic — `dragleave` resets the timestamp.
 

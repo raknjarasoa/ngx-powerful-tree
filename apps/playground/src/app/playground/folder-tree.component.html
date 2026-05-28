@@ -64,6 +64,7 @@
 
           <!-- Relocate / Move Action Button (For Custom File) -->
           <div class="file-actions">
+            @if (!item.locked) {
             <button
               class="action-btn move-btn"
               (click)="primaryTree.triggerMove(item.id, $event)"
@@ -72,6 +73,7 @@
             >
               <i class="fas fa-exchange-alt"></i>
             </button>
+            }
           </div>
         </div>
       </ng-template>
@@ -123,6 +125,7 @@
         <!-- Displays FOLDERS ONLY clickable, without files -->
         <div class="overlay-tree-wrapper">
           <ngx-powerful-tree
+            #pickerTree
             [nodes]="pickerNodes()"
             [selectableTypes]="'folders'"
             [readOnly]="true"

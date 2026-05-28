@@ -33,6 +33,7 @@ import {
 })
 export class FolderTreeComponent {
   primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
+  pickerTree = viewChild<NgxPowerfulTree>('pickerTree');
 
   searchPredicate: NgxTreeSearchPredicate = (item, query) => {
     const q = query.toLowerCase();
@@ -323,11 +324,25 @@ export class FolderTreeComponent {
   onMoveRequested(id: string) {
     const tree = this.primaryTree();
     if (!tree) return;
-    // Populate relocation tree with only folders
-    this.pickerNodes.set(expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds()));
+    // Populate relocation tree with only folders, excluding locked subtrees so
+    // they can't be chosen as destinations.
+    const all = expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds());
+    this.pickerNodes.set(this.stripLocked(all));
     this.movingItemId.set(id);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(true);
+  }
+
+  private stripLocked(nodes: NgxTreeNode[]): NgxTreeNode[] {
+    const out: NgxTreeNode[] = [];
+    for (const n of nodes) {
+      if (n.locked) continue;
+      out.push({
+        ...n,
+        children: n.children ? this.stripLocked(n.children) : undefined,
+      });
+    }
+    return out;
   }
 
   onDestinationSelected(selected: string[]) {
@@ -362,6 +377,15 @@ export class FolderTreeComponent {
   }
 
   cancelMove() {
+    // The @defer block keeps the picker instance alive across close/reopen,
+    // so its store retains the previously selected and focused ids. Both
+    // contribute to the row highlight, so clear both — otherwise the row
+    // still looks selected on reopen.
+    const picker = this.pickerTree();
+    if (picker) {
+      picker.store.clearSelection();
+      picker.store.setFocusedItemId(null);
+    }
     this.movingItemId.set(null);
     this.selectedDestinationId.set(null);
     this.overlaySearchQuery.set('');
