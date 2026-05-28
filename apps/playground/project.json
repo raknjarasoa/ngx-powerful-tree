@@ -13,6 +13,7 @@
         "outputPath": "dist/apps/playground",
         "browser": "apps/playground/src/main.ts",
         "tsConfig": "apps/playground/tsconfig.app.json",
+        "polyfills": ["zone.js"],
         "assets": [
           {
             "glob": "**/*",

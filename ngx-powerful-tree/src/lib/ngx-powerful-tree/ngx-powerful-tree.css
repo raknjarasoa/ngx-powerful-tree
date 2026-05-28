@@ -51,25 +51,6 @@
   box-sizing: border-box;
 }
 
-/* ------------------------------------------------------------------------
-   Native Dark Theme Customization Variables
-   Provides dynamic and beautiful out-of-the-box system-scheme adjustments.
-   ------------------------------------------------------------------------ */
-@media (prefers-color-scheme: dark) {
-  .ngx-tree-container {
-    --ngx-tree-bg: var(--ngx-tree-background, #0f172a);
-    --ngx-tree-color: var(--ngx-tree-text-color, #f8fafc);
-    --ngx-tree-selected-bg: var(--ngx-tree-selection-bg, #1e293b);
-    --ngx-tree-hover-bg: var(--ngx-tree-row-hover-bg, #1e293b80);
-    --ngx-tree-focused-outline: var(--ngx-tree-focus-ring, #60a5fa);
-    --ngx-tree-drag-border: var(--ngx-tree-drag-line, #60a5fa);
-    --ngx-tree-accent: var(--ngx-tree-search-match-bg, #854d0e);
-    --ngx-tree-action-color: var(--ngx-tree-action-icon-color, #94a3b8);
-    --ngx-tree-action-hover: var(--ngx-tree-action-icon-hover, #ffffff);
-    --ngx-tree-border: var(--ngx-tree-container-border, #334155);
-  }
-}
-
 /* ==========================================================================
    PART 1: CORE LAYOUT & STRUCTURAL STYLES (MANDATORY)
    DO NOT MODIFY OR DELETE these rules without deep virtual scrolling / DnD validation.
@@ -217,8 +198,15 @@
    ========================================================================== */
 
 .ngx-tree-row-wrapper {
-  min-height: var(--ngx-tree-row-min-height);
-  height: auto;
+  /* Fixed height (not min-height + auto) is mandatory: CDK virtual scroll
+     allocates exactly [itemSize] pixels per row. Without `overflow: hidden`,
+     custom templates can push the wrapper taller, drifting visuals from the
+     virtual scroll stride. Without the fixed height, any class toggled
+     during drag that affects layout (e.g. switching from outline to border)
+     would shift other rows. Set [itemSize] to match your custom template
+     and override --ngx-tree-row-height-min so the row matches itemSize. */
+  height: var(--ngx-tree-row-min-height);
+  overflow: hidden;
 }
 
 /* Hover & Selected States */
@@ -241,10 +229,15 @@
   background-color: var(--ngx-tree-hover-bg);
 }
 
-/* Dragging Opacity and Dotted Borders */
+/* Dragging Opacity and Dotted Outline.
+   `outline` (not `border`) is mandatory: a border adds 2 px to the box
+   model, breaking the fixed `[itemSize]` contract CDK virtual scroll
+   relies on. `outline-offset: -1px` keeps the ring visually inside the
+   row so it doesn't clip against neighbours. */
 .ngx-tree-row-wrapper.ngx-tree-row--dragging {
   opacity: 0.5;
-  border: 1px dashed var(--ngx-tree-action-color);
+  outline: 1px dashed var(--ngx-tree-action-color);
+  outline-offset: -1px;
 }
 
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
@@ -253,7 +246,7 @@
 }
 
 .ngx-tree-row-content {
-  min-height: var(--ngx-tree-row-min-height);
+  height: var(--ngx-tree-row-min-height);
   padding: var(--ngx-tree-row-padding);
 }
 
@@ -371,4 +364,22 @@
 
 .ngx-tree-row--locked .ngx-tree-item-name {
   font-style: italic;
+}
+
+/* Global Drag Ghost Element Style */
+::ng-deep .ngx-tree-drag-ghost {
+  display: flex;
+  align-items: center;
+  background-color: var(--ngx-tree-bg, #ffffff);
+  color: var(--ngx-tree-color, #0f172a);
+  font-family: var(--ngx-tree-font-family, system-ui, -apple-system, sans-serif);
+  font-size: var(--ngx-tree-font-size, 0.95rem);
+  padding: 6px 12px;
+  border-radius: 4px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--ngx-tree-border, #cbd5e1);
+  pointer-events: none;
+  z-index: 9999;
 }

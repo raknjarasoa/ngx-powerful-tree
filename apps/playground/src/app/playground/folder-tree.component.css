@@ -107,6 +107,11 @@
   display: block;
   height: 100%;
   --ngx-tree-min-height: 400px;
+  /* Custom file template is two lines (name + description). Library row CSS
+     is `height: var(--ngx-tree-row-min-height); overflow: hidden;`, so the
+     row min-height MUST match [itemSize]="48" above — otherwise the second
+     line gets clipped and the virtual scroll stride drifts. */
+  --ngx-tree-row-height-min: 48px;
 }
 
 /* Custom File Template Styles */
@@ -315,8 +320,19 @@
 .overlay-modal-footer {
   padding: 12px 20px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+}
+
+.footer-left {
+  display: flex;
+}
+
+.footer-right {
+  display: flex;
+  gap: 8px;
 }
 
 .cancel-btn {
@@ -337,153 +353,43 @@
   border-color: #94a3b8;
 }
 
-/* Move to Root level styles */
-.overlay-root-action-bar {
-  padding: 10px 20px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: center;
-  box-sizing: border-box;
-}
-
-.move-to-root-btn {
-  width: 100%;
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
+.move-to-root-btn-simple {
+  background: none;
   border: none;
+  color: #64748b;
   font-size: 0.88rem;
-  font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 8px;
+  font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 10px -2px rgba(16, 185, 129, 0.3);
-  transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-sizing: border-box;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
 }
 
-.move-to-root-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px -2px rgba(16, 185, 129, 0.4);
-  background: linear-gradient(135deg, #059669, #047857);
+.move-to-root-btn-simple:hover {
+  background: #f8fafc;
+  color: #0f172a;
 }
 
-.move-to-root-btn:active {
-  transform: translateY(0);
+.confirm-btn {
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-/* Dark mode preferences support */
-@media (prefers-color-scheme: dark) {
-  .popover-tree-container {
-    background: #1e293b;
-  }
+.confirm-btn:hover:not(:disabled) {
+  background: #4338ca;
+}
 
-  .search-input {
-    background: #0f172a;
-    border-color: #334155;
-    color: #f8fafc;
-  }
-
-  .search-input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-  }
-
-  .new-folder-btn {
-    background: #0f172a;
-    color: #94a3b8;
-    border-color: #334155;
-  }
-
-  .new-folder-btn:hover {
-    background: rgba(99, 102, 241, 0.15);
-    color: #818cf8;
-    border-color: rgba(99, 102, 241, 0.4);
-  }
-
-  .tree-scroll-container {
-    background: #0f172a;
-    border-color: #334155;
-  }
-
-  .custom-file-row {
-    color: #cbd5e1;
-  }
-
-  .custom-file-row:hover {
-    background-color: rgba(99, 102, 241, 0.15);
-  }
-
-  .file-name {
-    color: #e2e8f0;
-  }
-
-  .file-description {
-    color: #94a3b8;
-  }
-
-  .action-btn {
-    color: #94a3b8;
-  }
-
-  .move-btn:hover {
-    background-color: rgba(99, 102, 241, 0.2);
-    color: #818cf8;
-  }
-
-  .overlay-modal {
-    background: #1e293b;
-    border-color: #334155;
-  }
-
-  .overlay-modal-header {
-    border-color: #334155;
-  }
-
-  .header-details h3 {
-    color: #f8fafc;
-  }
-
-  .header-details p {
-    color: #94a3b8;
-  }
-
-  .moving-item-name {
-    color: #818cf8;
-  }
-
-  .overlay-search-group {
-    background: #131d31;
-    border-color: #334155;
-  }
-
-  .overlay-tree-wrapper {
-    background: #0f172a;
-    border-color: #334155;
-  }
-
-  .overlay-root-action-bar {
-    background: #1e293b;
-    border-color: #334155;
-  }
-
-  .overlay-modal-footer {
-    background: #1e293b;
-  }
-
-  .cancel-btn {
-    background: #1e293b;
-    color: #cbd5e1;
-    border-color: #475569;
-  }
-
-  .cancel-btn:hover {
-    background: #334155;
-    color: #f8fafc;
-    border-color: #64748b;
-  }
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

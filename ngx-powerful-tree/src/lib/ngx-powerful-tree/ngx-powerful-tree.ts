@@ -16,6 +16,7 @@ import {
   effect,
   inject,
   input,
+  isDevMode,
   output,
   untracked,
   viewChild,
@@ -78,7 +79,7 @@ function generateNodeId(): string {
     for (const b of buf) hex += b.toString(16).padStart(2, '0');
     return `node-${hex}`;
   }
-  return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `node-${performance.now().toString(36).replace('.', '')}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 @Component({
@@ -239,6 +240,15 @@ export class NgxPowerfulTree implements AfterViewInit {
         this.store.searchPredicate.set(predicate);
       });
     });
+
+    // 8. Stop autoscroll when dragging finishes (detected via store signal)
+    // This perfectly syncs autoscroll with the global drag state, completely bypassing DOM event bubbling issues.
+    effect(() => {
+      const draggedId = this.store.draggedItemId();
+      if (!draggedId) {
+        untracked(() => this.stopAutoScroll());
+      }
+    });
   }
 
   trackById(index: number, item: NgxTreeStructuralItem): string {
@@ -366,53 +376,6 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
 
     switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        if (focusedIdx < list.length - 1) {
-          const nextId = list[focusedIdx + 1].id;
-          this.store.setFocusedItemId(nextId);
-          this.scrollToIndex(focusedIdx + 1);
-        }
-        break;
-
-      case 'ArrowUp':
-        event.preventDefault();
-        if (focusedIdx > 0) {
-          const prevId = list[focusedIdx - 1].id;
-          this.store.setFocusedItemId(prevId);
-          this.scrollToIndex(focusedIdx - 1);
-        }
-        break;
-
-      case 'ArrowRight':
-        event.preventDefault();
-        if (currentItem.isFolder) {
-          if (!currentItem.expanded) {
-            this.store.setExpanded(currentItem.id, true);
-          } else if (focusedIdx < list.length - 1) {
-            const nextItem = list[focusedIdx + 1];
-            if (nextItem.parentId === currentItem.id) {
-              this.store.setFocusedItemId(nextItem.id);
-              this.scrollToIndex(focusedIdx + 1);
-            }
-          }
-        }
-        break;
-
-      case 'ArrowLeft':
-        event.preventDefault();
-        if (currentItem.isFolder && currentItem.expanded) {
-          this.store.setExpanded(currentItem.id, false);
-        } else if (currentItem.parentId) {
-          const parentId = currentItem.parentId;
-          const parentIdx = indexById[parentId] ?? -1;
-          if (parentIdx !== -1) {
-            this.store.setFocusedItemId(parentId);
-            this.scrollToIndex(parentIdx);
-          }
-        }
-        break;
-
       case ' ':
         event.preventDefault();
         this.store.selectItem(currentItem.id, this.multiSelect());
@@ -434,43 +397,9 @@ export class NgxPowerfulTree implements AfterViewInit {
         }
         break;
 
-      case 'Delete':
-        event.preventDefault();
-        if (!this.readOnly() && this.store.deleteItem(currentItem.id)) {
-          this.itemDeleted.emit(currentItem.id);
-        }
-        break;
-
       case 'Escape':
         event.preventDefault();
         this.store.clearSelection();
-        break;
-
-      case 'Home':
-        event.preventDefault();
-        this.store.setFocusedItemId(list[0].id);
-        this.scrollToIndex(0);
-        break;
-
-      case 'End':
-        event.preventDefault();
-        this.store.setFocusedItemId(list[list.length - 1].id);
-        this.scrollToIndex(list.length - 1);
-        break;
-
-      default:
-        // Wrap-around typeahead: jump focus to next item starting with key.
-        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-          const char = event.key.toLowerCase();
-          for (let i = 1; i <= list.length; i++) {
-            const idx = (focusedIdx + i) % list.length;
-            if (list[idx].name.toLowerCase().startsWith(char)) {
-              this.store.setFocusedItemId(list[idx].id);
-              this.scrollToIndex(idx);
-              break;
-            }
-          }
-        }
         break;
     }
   }
@@ -485,9 +414,23 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
   }
 
-  // --- Auto-scroll during drag-and-drop (runs outside Angular zone) ---
-  private scrollSpeed = 15;
+  // --- Auto-scroll during drag (runs outside Angular zone)
+  //
+  // The component only handles auto-scroll near viewport edges. Drag hit-
+  // testing (target row + before/after/inside) lives in NgxTreeRowDirective:
+  // each row reads its own clientY/rect math from native dragover events.
+  //
+  // As the viewport auto-scrolls and rows move under the stationary cursor,
+  // browsers fire dragover on whichever row is now under the cursor — no
+  // central re-evaluation is needed. This works because the row CSS locks
+  // every visible row to `itemSize` (no layout shift during drag).
+  //
+  // Custom templates that diverge from `itemSize` are flagged once via a
+  // dev-mode warning the first time a drag starts.
+  private readonly scrollSpeedBase = 10;
+  private readonly scrollSpeedMax = 14;
   private animationFrameId: number | null = null;
+  private itemSizeWarned = false;
 
   ngAfterViewInit() {
     if (!isPlatformBrowser(this.platformId)) {
@@ -500,54 +443,82 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     this.ngZone.runOutsideAngular(() => {
       const handleDragOver = (event: DragEvent) => {
-        const draggedId = this.store.draggedItemId();
-        if (!draggedId) {
+        if (this.readOnly() || !this.store.draggedItemId()) {
           this.stopAutoScroll();
           return;
         }
-
-        const rect = viewportEl.getBoundingClientRect();
-        const mouseY = event.clientY;
-
-        const topThreshold = rect.top + 40;
-        const bottomThreshold = rect.bottom - 40;
-
-        if (mouseY < topThreshold) {
-          const intensity = Math.max(0, (topThreshold - mouseY) / 40);
-          this.startAutoScroll(viewportEl, -1, intensity);
-        } else if (mouseY > bottomThreshold) {
-          const intensity = Math.max(0, (mouseY - bottomThreshold) / 40);
-          this.startAutoScroll(viewportEl, 1, intensity);
-        } else {
+        this.maybeWarnItemSizeMismatch(viewportEl, this.itemSize());
+        this.updateAutoScroll(viewportEl, event.clientY);
+      };
+      const handleDragLeave = (event: DragEvent) => {
+        const related = event.relatedTarget as Node | null;
+        if (!related || !viewportEl.contains(related)) {
           this.stopAutoScroll();
         }
       };
-
-      const handleDragLeaveOrEnd = () => {
-        this.stopAutoScroll();
+      const handleWindowDragEnd = () => {
+        if (this.store.draggedItemId()) {
+          this.store.clearDragState();
+        }
       };
 
       viewportEl.addEventListener('dragover', handleDragOver);
-      viewportEl.addEventListener('dragleave', handleDragLeaveOrEnd);
-      viewportEl.addEventListener('drop', handleDragLeaveOrEnd);
-      document.addEventListener('dragend', handleDragLeaveOrEnd);
+      viewportEl.addEventListener('dragleave', handleDragLeave);
+      window.addEventListener('dragend', handleWindowDragEnd);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
-        viewportEl.removeEventListener('dragleave', handleDragLeaveOrEnd);
-        viewportEl.removeEventListener('drop', handleDragLeaveOrEnd);
-        document.removeEventListener('dragend', handleDragLeaveOrEnd);
+        viewportEl.removeEventListener('dragleave', handleDragLeave);
+        window.removeEventListener('dragend', handleWindowDragEnd);
         this.stopAutoScroll();
       });
     });
   }
 
+  private maybeWarnItemSizeMismatch(viewportEl: HTMLElement, itemSize: number) {
+    if (this.itemSizeWarned || !isDevMode()) return;
+    const row = viewportEl.querySelector<HTMLElement>('.ngx-tree-row-wrapper');
+    if (!row) return;
+    const measured = row.getBoundingClientRect().height;
+    if (measured > 0) {
+      this.itemSizeWarned = true;
+      if (Math.abs(measured - itemSize) > 1) {
+        console.warn(
+          `[ngx-powerful-tree] Rendered row height (${measured}px) does not match [itemSize] (${itemSize}px). ` +
+            `Virtual scroll requires a fixed itemSize. Either set [itemSize] to match your custom template ` +
+            `height, or override --ngx-tree-row-height-min so the row matches itemSize.`
+        );
+      }
+    }
+  }
+
+  private updateAutoScroll(viewportEl: HTMLElement, mouseY: number) {
+    const rect = viewportEl.getBoundingClientRect();
+    const topThreshold = rect.top + 40;
+    const bottomThreshold = rect.bottom - 40;
+
+    if (mouseY < topThreshold) {
+      const intensity = Math.min(1, Math.max(0, (topThreshold - mouseY) / 40));
+      this.startAutoScroll(viewportEl, -1, intensity);
+    } else if (mouseY > bottomThreshold) {
+      const intensity = Math.min(1, Math.max(0, (mouseY - bottomThreshold) / 40));
+      this.startAutoScroll(viewportEl, 1, intensity);
+    } else {
+      this.stopAutoScroll();
+    }
+  }
+
   private startAutoScroll(element: HTMLElement, direction: number, intensity: number) {
     this.stopAutoScroll();
+    // intensity is clamped to [0,1]; cap speed so we don't fight CDK's own
+    // scroll-tick handling. rAF is naturally ~60 fps.
+    const speed = Math.min(
+      this.scrollSpeedBase + intensity * this.scrollSpeedBase,
+      this.scrollSpeedMax
+    );
 
     const scrollFn = () => {
-      const amount = direction * this.scrollSpeed * intensity;
-      element.scrollTop += amount;
+      element.scrollTop += direction * speed;
       this.animationFrameId = requestAnimationFrame(scrollFn);
     };
 

@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,19 +7,19 @@ import {
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import {
   DragPosition,
+  expandItems,
   NgxPowerfulTree,
   NgxTreeActions,
   NgxTreeNode,
-  NgxTreeStructuralItem,
   NgxTreeSearchPredicate,
-  expandItems,
+  NgxTreeStructuralItem,
   OTHER_USERS_ROOT_ID,
 } from 'ngx-powerful-tree';
 
@@ -32,6 +33,7 @@ import {
 })
 export class FolderTreeComponent {
   primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
+  pickerTree = viewChild<NgxPowerfulTree>('pickerTree');
 
   searchPredicate: NgxTreeSearchPredicate = (item, query) => {
     const q = query.toLowerCase();
@@ -71,6 +73,7 @@ export class FolderTreeComponent {
 
   // --- Relocation state ---
   movingItemId = signal<string | null>(null);
+  selectedDestinationId = signal<string | null>(null);
   isMoveOverlayOpen = signal<boolean>(false);
   overlaySearchQuery = signal<string>('');
 
@@ -104,9 +107,9 @@ export class FolderTreeComponent {
     };
 
     // Run immediately
-    trySelect();
+    untracked(() => trySelect());
     // Schedule a small delay to handle async virtual scroll / flattening ticks
-    setTimeout(trySelect, 150);
+    setTimeout(() => untracked(() => trySelect()), 150);
   }
 
   constructor() {
@@ -117,7 +120,9 @@ export class FolderTreeComponent {
       const fileId = this.initialSelectedFileId();
       const tree = this.primaryTree();
       if (fileId && tree) {
-        this.selectAndExpandFile(fileId);
+        untracked(() => {
+          this.selectAndExpandFile(fileId);
+        });
       }
     });
   }
@@ -319,17 +324,34 @@ export class FolderTreeComponent {
   onMoveRequested(id: string) {
     const tree = this.primaryTree();
     if (!tree) return;
-    // Populate relocation tree with only folders
-    this.pickerNodes.set(expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds()));
+    // Populate relocation tree with only folders, excluding locked subtrees so
+    // they can't be chosen as destinations.
+    const all = expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds());
+    this.pickerNodes.set(this.stripLocked(all));
     this.movingItemId.set(id);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(true);
   }
 
+  private stripLocked(nodes: NgxTreeNode[]): NgxTreeNode[] {
+    const out: NgxTreeNode[] = [];
+    for (const n of nodes) {
+      if (n.locked) continue;
+      out.push({
+        ...n,
+        children: n.children ? this.stripLocked(n.children) : undefined,
+      });
+    }
+    return out;
+  }
+
   onDestinationSelected(selected: string[]) {
-    // Click instantly moves the item directly without confirmation!
+    this.selectedDestinationId.set(selected[0] || null);
+  }
+
+  confirmMove() {
     const draggedId = this.movingItemId();
-    const targetId = selected[0];
+    const targetId = this.selectedDestinationId();
     if (draggedId && targetId) {
       const tree = this.primaryTree();
       if (tree) {
@@ -355,7 +377,17 @@ export class FolderTreeComponent {
   }
 
   cancelMove() {
+    // The @defer block keeps the picker instance alive across close/reopen,
+    // so its store retains the previously selected and focused ids. Both
+    // contribute to the row highlight, so clear both — otherwise the row
+    // still looks selected on reopen.
+    const picker = this.pickerTree();
+    if (picker) {
+      picker.store.clearSelection();
+      picker.store.setFocusedItemId(null);
+    }
     this.movingItemId.set(null);
+    this.selectedDestinationId.set(null);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(false);
   }

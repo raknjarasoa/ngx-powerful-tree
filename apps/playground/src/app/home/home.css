@@ -81,34 +81,3 @@
 .hint a:hover {
   text-decoration: underline;
 }
-
-@media (prefers-color-scheme: dark) {
-  .home-page {
-    color: #f8fafc;
-  }
-
-  .home-header p {
-    color: #94a3b8;
-  }
-
-  .home-side {
-    background: #1e293b;
-    border-color: #334155;
-  }
-
-  .home-side h2 {
-    color: #94a3b8;
-  }
-
-  .selection-id {
-    color: #f8fafc;
-  }
-
-  .hint {
-    color: #cbd5e1;
-  }
-
-  .hint a {
-    color: #60a5fa;
-  }
-}
