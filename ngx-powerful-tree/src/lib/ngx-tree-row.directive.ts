@@ -50,6 +50,7 @@ export class NgxTreeRowDirective implements OnInit {
   private dragOverRafId: number | null = null;
   private dragOverPendingY: number | null = null;
   private dragGhostEl: HTMLElement | null = null;
+  private onDragEndBind = () => this.handleDragEnd();
 
   // Track current drop state locally so drop() knows exactly what was rendered
   private currentTargetId: string | null = null;
@@ -95,23 +96,26 @@ export class NgxTreeRowDirective implements OnInit {
       const onDragOverBind = (e: DragEvent) => this.handleDragOver(e);
       const onDragLeaveBind = () => this.handleDragLeave();
       const onDropBind = (e: DragEvent) => this.handleDrop(e);
-      const onDragEndBind = () => this.handleDragEnd();
 
       el.addEventListener('dragstart', onDragStartBind);
       el.addEventListener('dragover', onDragOverBind);
       el.addEventListener('dragleave', onDragLeaveBind);
       el.addEventListener('drop', onDropBind);
-      el.addEventListener('dragend', onDragEndBind);
+      el.addEventListener('dragend', this.onDragEndBind);
 
       this.destroyRef.onDestroy(() => {
         el.removeEventListener('dragstart', onDragStartBind);
         el.removeEventListener('dragover', onDragOverBind);
         el.removeEventListener('dragleave', onDragLeaveBind);
         el.removeEventListener('drop', onDropBind);
-        el.removeEventListener('dragend', onDragEndBind);
+
+        if (this.store.draggedItemId() !== this.item().id) {
+          el.removeEventListener('dragend', this.onDragEndBind);
+          this.removeDragGhost();
+        }
+
         this.clearHoverTimer();
         this.cancelDragOverRaf();
-        this.removeDragGhost();
       });
     });
   }
@@ -284,6 +288,7 @@ export class NgxTreeRowDirective implements OnInit {
     this.store.draggedItemId.set(null);
     this.currentTargetId = null;
     this.currentPosition = null;
+    this.el.nativeElement.removeEventListener('dragend', this.onDragEndBind);
   }
 
   // --- Helper Methods ---

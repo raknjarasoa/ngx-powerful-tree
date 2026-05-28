@@ -239,6 +239,15 @@ export class NgxPowerfulTree implements AfterViewInit {
         this.store.searchPredicate.set(predicate);
       });
     });
+
+    // 8. Stop autoscroll when dragging finishes (detected via store signal)
+    // This perfectly syncs autoscroll with the global drag state, completely bypassing DOM event bubbling issues.
+    effect(() => {
+      const draggedId = this.store.draggedItemId();
+      if (!draggedId) {
+        untracked(() => this.stopAutoScroll());
+      }
+    });
   }
 
   trackById(index: number, item: NgxTreeStructuralItem): string {
@@ -547,13 +556,11 @@ export class NgxPowerfulTree implements AfterViewInit {
       viewportEl.addEventListener('dragover', handleDragOver);
       viewportEl.addEventListener('dragleave', handleDragLeaveOrEnd);
       viewportEl.addEventListener('drop', handleDragLeaveOrEnd);
-      document.addEventListener('dragend', handleDragLeaveOrEnd);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
         viewportEl.removeEventListener('dragleave', handleDragLeaveOrEnd);
         viewportEl.removeEventListener('drop', handleDragLeaveOrEnd);
-        document.removeEventListener('dragend', handleDragLeaveOrEnd);
         if (dragOverRafId !== null) cancelAnimationFrame(dragOverRafId);
         this.stopAutoScroll();
       });
