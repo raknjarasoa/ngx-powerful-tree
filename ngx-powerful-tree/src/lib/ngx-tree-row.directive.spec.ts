@@ -258,9 +258,9 @@ describe('NgxTreeRowDirective', () => {
   // ----- spring-load ---------------------------------------------------------
 
   it('expands a collapsed folder after the spring-load delay elapses', () => {
-    const originalNow = Date.now;
+    const originalNow = performance.now.bind(performance);
     let nowValue = 1_000_000;
-    Date.now = () => nowValue;
+    performance.now = () => nowValue;
     try {
       component.store.setDragState('file-a', null, null);
 
@@ -278,14 +278,14 @@ describe('NgxTreeRowDirective', () => {
       dispatchDragOver(rows[0], 20);
       expect(component.store.expandedItems().has('folder')).toBe(true);
     } finally {
-      Date.now = originalNow;
+      performance.now = originalNow;
     }
   });
 
   it('resets the spring-load clock when the cursor leaves the row', () => {
-    const originalNow = Date.now;
+    const originalNow = performance.now.bind(performance);
     let nowValue = 1_000_000;
-    Date.now = () => nowValue;
+    performance.now = () => nowValue;
     try {
       component.store.setDragState('file-a', null, null);
 
@@ -303,7 +303,7 @@ describe('NgxTreeRowDirective', () => {
       dispatchDragOver(rows[0], 20);
       expect(component.store.expandedItems().has('folder')).toBe(true);
     } finally {
-      Date.now = originalNow;
+      performance.now = originalNow;
     }
   });
 

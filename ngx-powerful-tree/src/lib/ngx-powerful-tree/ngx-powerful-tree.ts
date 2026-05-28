@@ -376,53 +376,6 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
 
     switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        if (focusedIdx < list.length - 1) {
-          const nextId = list[focusedIdx + 1].id;
-          this.store.setFocusedItemId(nextId);
-          this.scrollToIndex(focusedIdx + 1);
-        }
-        break;
-
-      case 'ArrowUp':
-        event.preventDefault();
-        if (focusedIdx > 0) {
-          const prevId = list[focusedIdx - 1].id;
-          this.store.setFocusedItemId(prevId);
-          this.scrollToIndex(focusedIdx - 1);
-        }
-        break;
-
-      case 'ArrowRight':
-        event.preventDefault();
-        if (currentItem.isFolder) {
-          if (!currentItem.expanded) {
-            this.store.setExpanded(currentItem.id, true);
-          } else if (focusedIdx < list.length - 1) {
-            const nextItem = list[focusedIdx + 1];
-            if (nextItem.parentId === currentItem.id) {
-              this.store.setFocusedItemId(nextItem.id);
-              this.scrollToIndex(focusedIdx + 1);
-            }
-          }
-        }
-        break;
-
-      case 'ArrowLeft':
-        event.preventDefault();
-        if (currentItem.isFolder && currentItem.expanded) {
-          this.store.setExpanded(currentItem.id, false);
-        } else if (currentItem.parentId) {
-          const parentId = currentItem.parentId;
-          const parentIdx = indexById[parentId] ?? -1;
-          if (parentIdx !== -1) {
-            this.store.setFocusedItemId(parentId);
-            this.scrollToIndex(parentIdx);
-          }
-        }
-        break;
-
       case ' ':
         event.preventDefault();
         this.store.selectItem(currentItem.id, this.multiSelect());
@@ -444,43 +397,9 @@ export class NgxPowerfulTree implements AfterViewInit {
         }
         break;
 
-      case 'Delete':
-        event.preventDefault();
-        if (!this.readOnly() && this.store.deleteItem(currentItem.id)) {
-          this.itemDeleted.emit(currentItem.id);
-        }
-        break;
-
       case 'Escape':
         event.preventDefault();
         this.store.clearSelection();
-        break;
-
-      case 'Home':
-        event.preventDefault();
-        this.store.setFocusedItemId(list[0].id);
-        this.scrollToIndex(0);
-        break;
-
-      case 'End':
-        event.preventDefault();
-        this.store.setFocusedItemId(list[list.length - 1].id);
-        this.scrollToIndex(list.length - 1);
-        break;
-
-      default:
-        // Wrap-around typeahead: jump focus to next item starting with key.
-        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-          const char = event.key.toLowerCase();
-          for (let i = 1; i <= list.length; i++) {
-            const idx = (focusedIdx + i) % list.length;
-            if (list[idx].name.toLowerCase().startsWith(char)) {
-              this.store.setFocusedItemId(list[idx].id);
-              this.scrollToIndex(idx);
-              break;
-            }
-          }
-        }
         break;
     }
   }

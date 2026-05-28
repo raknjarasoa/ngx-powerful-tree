@@ -169,7 +169,7 @@ The store is exposed as `tree.store`, so consumers can imperatively call
 - Virtual scrolling via CDK (`cdk-virtual-scroll-viewport`)
 - Fixed-height rows (locked to `itemSize` via CSS for virtual-scroll correctness)
 - Configurable depth padding
-- Two-tier CSS theming: 13 `--ngx-tree-*` CSS variables, auto dark mode via `prefers-color-scheme`
+- Two-tier CSS theming: `--ngx-tree-*` CSS variables and `.ngx-tree-*` class names.
 - Empty state
 - Optional text wrapping (`:host(.ngx-tree-wrap)`)
 - Custom row templates (whole-row or file-only)

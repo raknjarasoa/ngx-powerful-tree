@@ -57,29 +57,6 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         color: var(--pg-accent-blue, #2563eb);
         background: rgba(37, 99, 235, 0.08);
       }
-
-      @media (prefers-color-scheme: dark) {
-        .app-nav {
-          border-color: #334155;
-        }
-
-        .app-nav a {
-          color: #cbd5e1;
-        }
-
-        .app-nav a.brand {
-          color: #f8fafc;
-        }
-
-        .app-nav a:hover {
-          background: #1e293b;
-        }
-
-        .app-nav a.active {
-          color: #60a5fa;
-          background: rgba(96, 165, 250, 0.15);
-        }
-      }
     `,
   ],
 })

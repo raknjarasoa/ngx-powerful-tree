@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,17 +10,16 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import {
   DragPosition,
+  expandItems,
   NgxPowerfulTree,
   NgxTreeActions,
   NgxTreeNode,
-  NgxTreeStructuralItem,
   NgxTreeSearchPredicate,
-  expandItems,
+  NgxTreeStructuralItem,
   OTHER_USERS_ROOT_ID,
 } from 'ngx-powerful-tree';
 
@@ -119,7 +119,9 @@ export class FolderTreeComponent {
       const fileId = this.initialSelectedFileId();
       const tree = this.primaryTree();
       if (fileId && tree) {
-        this.selectAndExpandFile(fileId);
+        untracked(() => {
+          this.selectAndExpandFile(fileId);
+        });
       }
     });
   }

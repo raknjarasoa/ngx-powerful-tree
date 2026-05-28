@@ -15,7 +15,7 @@ import { NgxTreeStore } from './ngx-tree.store';
 import { DragPosition, NgxTreeStructuralItem } from './ngx-tree.types';
 
 // Spring-load delay for auto-expanding a folder when the cursor lingers
-// over its "inside" zone. Measured by Date.now() diff rather than a
+// over its "inside" zone. Measured by performance.now() diff rather than a
 // setTimeout id, so cancellation is implicit (a new hover resets the clock).
 const SPRING_LOAD_DELAY_MS = 800;
 
@@ -141,14 +141,12 @@ export class NgxTreeRowDirective implements OnInit {
       // a styled row forces a full document reflow at dragstart.
       const ghost = document.createElement('div');
       ghost.textContent = this.item().name;
-      ghost.style.cssText =
-        'position:fixed;top:-9999px;left:-9999px;pointer-events:none;box-sizing:border-box;' +
-        `width:${Math.min(rect.width, 300)}px;height:${rect.height}px;` +
-        'display:flex;align-items:center;padding:0 12px;' +
-        'font:14px/1 system-ui,sans-serif;background:var(--ngx-tree-bg,#fff);' +
-        'color:var(--ngx-tree-color,#0f172a);' +
-        'border:1px solid var(--ngx-tree-border,#cbd5e1);border-radius:4px;' +
-        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      ghost.classList.add('ngx-tree-drag-ghost');
+      ghost.style.width = `${Math.min(rect.width, 300)}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.position = 'fixed';
+      ghost.style.top = '-9999px';
+      ghost.style.left = '-9999px';
       document.body.appendChild(ghost);
       this.dragGhostEl = ghost;
 
@@ -206,7 +204,7 @@ export class NgxTreeRowDirective implements OnInit {
     // Spring-load expansion via timestamp diff. No setTimeout, no timer id
     // to track — cancellation is "cursor leaves" resetting the timestamp.
     if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
-      const now = Date.now();
+      const now = performance.now();
       if (this.springLoadHoverStartedAt === null) {
         this.springLoadHoverStartedAt = now;
       } else if (now - this.springLoadHoverStartedAt > SPRING_LOAD_DELAY_MS) {
