@@ -462,13 +462,26 @@ export class NgxPowerfulTree implements AfterViewInit {
         }
       };
 
+      // CDK virtual scroll recycles row elements on scroll, so any tooltip
+      // anchored to a row element will drift or linger at its last position.
+      // Immediately collapsing all visible PrimeNG overlay tooltips on each
+      // scroll tick is the most reliable fix without importing PrimeNG into
+      // the library component.
+      const handleViewportScroll = () => {
+        document.querySelectorAll<HTMLElement>('.p-tooltip').forEach((el) => {
+          el.style.display = 'none';
+        });
+      };
+
       viewportEl.addEventListener('dragover', handleDragOver);
       viewportEl.addEventListener('dragleave', handleDragLeave);
+      viewportEl.addEventListener('scroll', handleViewportScroll, { passive: true });
       window.addEventListener('dragend', handleWindowDragEnd);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
         viewportEl.removeEventListener('dragleave', handleDragLeave);
+        viewportEl.removeEventListener('scroll', handleViewportScroll);
         window.removeEventListener('dragend', handleWindowDragEnd);
         this.stopAutoScroll();
       });
