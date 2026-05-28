@@ -35,46 +35,32 @@
       (moveRequested)="onMoveRequested($event)"
       (itemMoved)="onItemMoved($event)"
     >
-      <!-- Custom File Template (Well Indented & Clickable) -->
+      <!-- Custom File Template (Chip-based, grid layout mirrors folder rows) -->
       <ng-template #fileTemplate let-item>
-        <div class="custom-file-row" (click)="onFileRowClick(item)">
-          <!-- 26px Spacer to align perfectly with expand/collapse folders layout -->
+        <div class="custom-file-row">
+          <!-- 26px spacer aligns chip with folder name start -->
           <div class="expand-spacer" aria-hidden="true"></div>
 
-          <!-- File Icon -->
-          <span class="file-icon-wrapper" aria-hidden="true">
-            <i [class]="item.icon || 'fas fa-file'"></i>
-          </span>
+          <!-- ngx-chip fills 1fr column and truncates long names naturally;
+               selectedChange fires onFileRowClick so the item is selected in the tree -->
+          <ngx-chip
+            class="file-chip"
+            [label]="item.name"
+            [selected]="isItemSelected(item.id)"
+            (selectedChange)="onFileRowClick(item)"
+          />
 
-          <!-- File Text and Description metadata -->
-          <div class="file-info">
-            <span
-              class="file-name"
-              [class.file-name--matched]="item.matchesSearch"
-              [title]="item.name"
+          <!-- Move action only for unlocked files; gap between chip and here is non-clickable -->
+          @if (!item.locked) {
+            <button
+              class="action-btn move-btn"
+              (click)="primaryTree.triggerMove(item.id, $event)"
+              title="Move to folder"
+              tabindex="-1"
             >
-              {{ item.name }}
-            </span>
-            @if (item.data?.description) {
-              <span class="file-description" [title]="item.data.description">
-                {{ item.data.description }}
-              </span>
-            }
-          </div>
-
-          <!-- Relocate / Move Action Button (For Custom File) -->
-          <div class="file-actions">
-            @if (!item.locked) {
-              <button
-                class="action-btn move-btn"
-                (click)="primaryTree.triggerMove(item.id, $event)"
-                title="Move to folder"
-                tabindex="-1"
-              >
-                <i class="fas fa-exchange-alt"></i>
-              </button>
-            }
-          </div>
+              <i class="fas fa-exchange-alt"></i>
+            </button>
+          }
         </div>
       </ng-template>
     </ngx-powerful-tree>

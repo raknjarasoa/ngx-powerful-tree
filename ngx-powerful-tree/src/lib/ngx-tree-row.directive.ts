@@ -142,6 +142,9 @@ export class NgxTreeRowDirective implements OnInit {
       const ghost = document.createElement('div');
       ghost.textContent = this.item().name;
       ghost.classList.add('ngx-tree-drag-ghost');
+      if (!this.item().isFolder) {
+        ghost.classList.add('ngx-tree-drag-ghost--file');
+      }
       ghost.style.width = `${Math.min(rect.width, 300)}px`;
       ghost.style.height = `${rect.height}px`;
       ghost.style.position = 'fixed';

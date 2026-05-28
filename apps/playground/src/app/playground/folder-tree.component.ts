@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import {
   DragPosition,
   expandItems,
+  NgxChipComponent,
   NgxPowerfulTree,
   NgxTreeActions,
   NgxTreeNode,
@@ -26,7 +27,7 @@ import {
 @Component({
   selector: 'app-folder-tree',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgxPowerfulTree],
+  imports: [CommonModule, FormsModule, NgxPowerfulTree, NgxChipComponent],
   templateUrl: './folder-tree.component.html',
   styleUrl: './folder-tree.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -302,6 +303,10 @@ export class FolderTreeComponent {
     }
 
     this.defaultTreeNodes.set(roots);
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.primaryTree()?.store.selectedItems().has(itemId) ?? false;
   }
 
   // --- Handlers ---
