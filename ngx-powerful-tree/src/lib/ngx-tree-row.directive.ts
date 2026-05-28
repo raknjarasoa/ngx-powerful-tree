@@ -33,7 +33,9 @@ import { DragPosition, NgxTreeStructuralItem } from './ngx-tree.types';
     '[class.ngx-tree-row--editing]': 'isEditing()',
     '[class.ngx-tree-row--locked]': 'isLocked()',
     '[class.ngx-tree-row--dragging]': 'isDragging()',
-    // We REMOVED drag-over classes from bindings. They will be applied natively.
+    '[class.ngx-tree-row--drag-over-inside]': 'isDragOverInside()',
+    '[class.ngx-tree-row--drag-over-before]': 'isDragOverBefore()',
+    '[class.ngx-tree-row--drag-over-after]': 'isDragOverAfter()',
     '[style.--ngx-tree-depth]': 'cssDepth()',
     '[class.ngx-tree-row--depth-0]': 'isDepth0()',
     '[attr.draggable]': 'isDraggable()',
@@ -46,23 +48,17 @@ export class NgxTreeRowDirective implements OnInit {
   private destroyRef = inject(DestroyRef);
   private platformId = inject(PLATFORM_ID);
 
-  private hoverTimer: number | null = null;
-  private dragOverRafId: number | null = null;
-  private dragOverPendingY: number | null = null;
   private dragGhostEl: HTMLElement | null = null;
-
-  // Track current drop state locally so drop() knows exactly what was rendered
-  private currentTargetId: string | null = null;
-  private currentPosition: DragPosition | null = null;
 
   item = input.required<NgxTreeStructuralItem>();
   readOnly = input<boolean>(false);
   locked = input<boolean>(false);
 
-  // Outputs for parent notification
+  // Kept for backward compatibility — NgxPowerfulTree now emits itemMoved
+  // directly from its centralized drop handler, but consumers may still
+  // listen on this row-level output.
   itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
 
-  // Derived state signals to avoid legacy getters
   ariaExpanded = computed(() => (this.item().isFolder ? this.item().expanded.toString() : null));
   ariaSelected = computed(() => this.store.selectedItems().has(this.item().id));
   ariaLevel = computed(() => this.item().depth + 1);
@@ -78,6 +74,19 @@ export class NgxTreeRowDirective implements OnInit {
   isLocked = computed(() => this.locked());
   isDragging = computed(() => this.store.draggedItemId() === this.item().id);
 
+  // Drag-over indicators read from the centralized store. No DOM mutation
+  // happens here — Angular applies the classes via host bindings when these
+  // computeds change.
+  isDragOverInside = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'inside'
+  );
+  isDragOverBefore = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'before'
+  );
+  isDragOverAfter = computed(
+    () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'after'
+  );
+
   cssDepth = computed(() => this.item().depth);
   isDepth0 = computed(() => this.item().depth === 0);
   isDraggable = computed(
@@ -89,34 +98,17 @@ export class NgxTreeRowDirective implements OnInit {
       return;
     }
     this.ngZone.runOutsideAngular(() => {
-      const el = this.el.nativeElement;
+      const el = this.el.nativeElement as HTMLElement;
+      const onDragStart = (e: DragEvent) => this.handleDragStart(e);
 
-      const onDragStartBind = (e: DragEvent) => this.handleDragStart(e);
-      const onDragOverBind = (e: DragEvent) => this.handleDragOver(e);
-      const onDragLeaveBind = () => this.handleDragLeave();
-      const onDropBind = (e: DragEvent) => this.handleDrop(e);
-      const onDragEndBind = () => this.handleDragEnd();
-
-      el.addEventListener('dragstart', onDragStartBind);
-      el.addEventListener('dragover', onDragOverBind);
-      el.addEventListener('dragleave', onDragLeaveBind);
-      el.addEventListener('drop', onDropBind);
-      el.addEventListener('dragend', onDragEndBind);
+      el.addEventListener('dragstart', onDragStart);
 
       this.destroyRef.onDestroy(() => {
-        el.removeEventListener('dragstart', onDragStartBind);
-        el.removeEventListener('dragover', onDragOverBind);
-        el.removeEventListener('dragleave', onDragLeaveBind);
-        el.removeEventListener('drop', onDropBind);
-        el.removeEventListener('dragend', onDragEndBind);
-        this.clearHoverTimer();
-        this.cancelDragOverRaf();
+        el.removeEventListener('dragstart', onDragStart);
         this.removeDragGhost();
       });
     });
   }
-
-  // --- HTML5 Native Drag & Drop Event Handlers (Outside Angular Zone for 60 FPS) ---
 
   private handleDragStart(event: DragEvent) {
     if (this.readOnly() || this.locked() || this.store.editingItemId() === this.item().id) {
@@ -124,184 +116,45 @@ export class NgxTreeRowDirective implements OnInit {
       return;
     }
 
+    const sourceEl = this.el.nativeElement as HTMLElement;
+    const rect = sourceEl.getBoundingClientRect();
+
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', this.item().id);
 
-      const sourceEl = this.el.nativeElement as HTMLElement;
-      const rect = sourceEl.getBoundingClientRect();
-      const ghost = sourceEl.cloneNode(true) as HTMLElement;
-      ghost.style.position = 'fixed';
-      ghost.style.top = '-9999px';
-      ghost.style.left = '-9999px';
-      ghost.style.width = `${rect.width}px`;
-      ghost.style.opacity = '1';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.boxSizing = 'border-box';
-      ghost.style.background = 'var(--ngx-tree-bg, #ffffff)';
-      ghost.classList.remove(
-        'ngx-tree-row--dragging',
-        'ngx-tree-row--drag-over-before',
-        'ngx-tree-row--drag-over-after',
-        'ngx-tree-row--drag-over-inside'
-      );
+      // Lightweight text ghost rather than cloneNode(true). Deep-cloning a
+      // styled row at dragstart forces a full document reflow; a small
+      // single-purpose element keeps the start of the drag jank-free.
+      const ghost = document.createElement('div');
+      ghost.textContent = this.item().name;
+      ghost.style.cssText =
+        'position:fixed;top:-9999px;left:-9999px;pointer-events:none;box-sizing:border-box;' +
+        `width:${Math.min(rect.width, 300)}px;height:${rect.height}px;` +
+        'display:flex;align-items:center;padding:0 12px;' +
+        'font:14px/1 system-ui,sans-serif;background:var(--ngx-tree-bg,#fff);' +
+        'color:var(--ngx-tree-color,#0f172a);' +
+        'border:1px solid var(--ngx-tree-border,#cbd5e1);border-radius:4px;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
       document.body.appendChild(ghost);
       this.dragGhostEl = ghost;
 
       event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
     }
 
-    this.store.draggedItemId.set(this.item().id);
-  }
-
-  private handleDragOver(event: DragEvent) {
-    if (this.readOnly() || this.locked()) return;
-
-    const draggedId = this.store.draggedItemId();
-    if (!draggedId || draggedId === this.item().id) return;
-
-    event.preventDefault(); // Required to allow drop!
-
-    // Coalesce multiple dragover events per row into a single rAF tick.
-    this.dragOverPendingY = event.clientY;
-    if (this.dragOverRafId !== null) return;
-    this.dragOverRafId = requestAnimationFrame(() => {
-      this.dragOverRafId = null;
-      const y = this.dragOverPendingY;
-      this.dragOverPendingY = null;
-      if (y === null) return;
-      this.processDragOver(y, draggedId);
+    // dragstart fires inside the zone block (runOutsideAngular). Wrap the
+    // signal write so dependent effects see the change.
+    this.ngZone.run(() => {
+      this.store.setDragState(this.item().id, null, null);
     });
-  }
 
-  private processDragOver(clientY: number, draggedId: string) {
-    const rect = this.el.nativeElement.getBoundingClientRect();
-    const relativeY = clientY - rect.top;
-    const height = rect.height;
-    let position: DragPosition = 'inside';
-
-    if (this.item().isFolder) {
-      if (relativeY < height * 0.25) position = 'before';
-      else if (relativeY > height * 0.75 && !this.item().expanded) position = 'after';
-      else position = 'inside';
-    } else {
-      position = relativeY < height * 0.5 ? 'before' : 'after';
-    }
-
-    let targetId = this.item().id;
-    let finalPosition = position;
-
-    this.currentTargetId = targetId;
-    this.currentPosition = finalPosition;
-
-    this.applyDragClasses(finalPosition, true);
-
-    // Spring-loaded folder expansion at 800ms hover.
-    if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
-      if (!this.hoverTimer) {
-        this.hoverTimer = window.setTimeout(() => {
-          this.ngZone.run(() => {
-            this.store.setExpanded(this.item().id, true);
-          });
-          this.hoverTimer = null;
-        }, 800);
-      }
-    } else {
-      this.clearHoverTimer();
-    }
-  }
-
-  private handleDragLeave() {
-    if (this.readOnly() || this.locked()) return;
-    this.clearHoverTimer();
-    this.cancelDragOverRaf();
-    this.clearDragClasses();
-    this.currentTargetId = null;
-    this.currentPosition = null;
-  }
-
-  private cancelDragOverRaf() {
-    if (this.dragOverRafId !== null) {
-      cancelAnimationFrame(this.dragOverRafId);
-      this.dragOverRafId = null;
-    }
-    this.dragOverPendingY = null;
-  }
-
-  private handleDrop(event: DragEvent) {
-    if (this.readOnly() || this.locked()) return;
-    event.preventDefault();
-    this.clearHoverTimer();
-
-    const draggedId = this.store.draggedItemId();
-
-    // Flush any pending rAF so currentPosition is computed before reading it.
-    const pendingY = this.dragOverPendingY;
-    this.cancelDragOverRaf();
-    if (pendingY !== null && draggedId) {
-      this.processDragOver(pendingY, draggedId);
-    }
-    this.clearDragClasses();
-    const position = this.currentPosition;
-    const dragOverItemId = this.currentTargetId;
-
-    if (draggedId && dragOverItemId && position && draggedId !== dragOverItemId) {
-      this.ngZone.run(() => {
-        if (this.store.moveItem(draggedId, dragOverItemId, position)) {
-          this.itemMoved.emit({
-            draggedId,
-            targetId: dragOverItemId,
-            position,
-          });
-        }
-        this.store.draggedItemId.set(null);
-      });
-    } else {
-      this.store.draggedItemId.set(null);
-    }
-
-    this.currentTargetId = null;
-    this.currentPosition = null;
-  }
-
-  private handleDragEnd() {
-    this.clearHoverTimer();
-    this.cancelDragOverRaf();
-    this.removeDragGhost();
-    this.clearDragClasses();
-    this.store.draggedItemId.set(null);
-    this.currentTargetId = null;
-    this.currentPosition = null;
-  }
-
-  // --- Helper Methods ---
-
-  private applyDragClasses(position: DragPosition, isDirectTarget: boolean) {
-    // Only paint the class if THIS row is the actual DOM target
-    // (If position 'after' mapped to 'before' of next sibling, that sibling will paint)
-    this.clearDragClasses();
-    if (isDirectTarget) {
-      const el = this.el.nativeElement as HTMLElement;
-      if (position === 'inside') el.classList.add('ngx-tree-row--drag-over-inside');
-      else if (position === 'before') el.classList.add('ngx-tree-row--drag-over-before');
-      else if (position === 'after') el.classList.add('ngx-tree-row--drag-over-after');
-    }
-  }
-
-  private clearDragClasses() {
-    const el = this.el.nativeElement as HTMLElement;
-    el.classList.remove(
-      'ngx-tree-row--drag-over-inside',
-      'ngx-tree-row--drag-over-before',
-      'ngx-tree-row--drag-over-after'
-    );
-  }
-
-  private clearHoverTimer() {
-    if (this.hoverTimer) {
-      window.clearTimeout(this.hoverTimer);
-      this.hoverTimer = null;
-    }
+    // dragend on the source element is the only reliable cleanup for the
+    // ghost when the drop happens outside any handler.
+    const onDragEnd = () => {
+      this.removeDragGhost();
+      sourceEl.removeEventListener('dragend', onDragEnd);
+    };
+    sourceEl.addEventListener('dragend', onDragEnd);
   }
 
   private removeDragGhost() {

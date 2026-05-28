@@ -259,6 +259,57 @@ describe('NgxTreeStore', () => {
     expect(store.searchQuery()).toBe('');
   });
 
+  it('should set and clear centralized drag state atomically', () => {
+    store.setDragState('child-a1', 'child-a2', 'inside');
+    expect(store.draggedItemId()).toBe('child-a1');
+    expect(store.dragTargetId()).toBe('child-a2');
+    expect(store.dragPosition()).toBe('inside');
+
+    store.clearDragState();
+    expect(store.draggedItemId()).toBeNull();
+    expect(store.dragTargetId()).toBeNull();
+    expect(store.dragPosition()).toBeNull();
+  });
+
+  it('should cascade-clear dragTargetId when the target is deleted', () => {
+    store.setDragState('child-a1', 'child-a2', 'inside');
+    store.toggleExpand('root-a'); // make child-a2 visible
+    store.deleteItem('child-a2');
+    expect(store.dragTargetId()).toBeNull();
+    expect(store.dragPosition()).toBeNull();
+    // Source still being dragged though, since only the target was deleted.
+    expect(store.draggedItemId()).toBe('child-a1');
+  });
+
+  it('should cascade-clear all drag state when the dragged item is deleted', () => {
+    store.setDragState('child-a1', 'child-a2', 'inside');
+    store.toggleExpand('root-a');
+    store.deleteItem('child-a1');
+    expect(store.draggedItemId()).toBeNull();
+    expect(store.dragTargetId()).toBeNull();
+    expect(store.dragPosition()).toBeNull();
+  });
+
+  it('setExpanded is a no-op when state already matches (preserves Set identity)', () => {
+    const before = store.expandedItems();
+    store.setExpanded('root-a', false); // root-a starts collapsed
+    expect(store.expandedItems()).toBe(before);
+
+    store.setExpanded('root-a', true);
+    const afterExpand = store.expandedItems();
+    expect(afterExpand).not.toBe(before);
+
+    store.setExpanded('root-a', true); // already expanded
+    expect(store.expandedItems()).toBe(afterExpand);
+  });
+
+  it('selectItem is a no-op when the same single item is already selected', () => {
+    store.selectItem('root-b'); // selects root-b
+    const ref = store.selectedItems();
+    store.selectItem('root-b'); // same item, single-select mode
+    expect(store.selectedItems()).toBe(ref);
+  });
+
   it('should support custom search predicate', () => {
     const customItems: Record<string, NgxTreeItem> = {
       'item-1': {

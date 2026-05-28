@@ -217,8 +217,13 @@
    ========================================================================== */
 
 .ngx-tree-row-wrapper {
-  min-height: var(--ngx-tree-row-min-height);
-  height: auto;
+  /* Fixed height (not min-height + auto) is mandatory for virtual scroll
+     and centralized math-based drag hit-testing. The tree computes the
+     hovered row from scrollTop+clientY / itemSize — any per-row drift
+     misaligns drop targets. Use a custom template at the same itemSize
+     if you need taller rows; do not switch this back to auto. */
+  height: var(--ngx-tree-row-min-height);
+  overflow: hidden;
 }
 
 /* Hover & Selected States */
@@ -241,10 +246,15 @@
   background-color: var(--ngx-tree-hover-bg);
 }
 
-/* Dragging Opacity and Dotted Borders */
+/* Dragging Opacity and Dotted Outline.
+   `outline` (not `border`) is mandatory: a border adds 2px to the box
+   model, breaking the fixed-itemSize contract that CDK virtual scroll and
+   the centralized drag math depend on. `outline-offset: -1px` keeps the
+   ring visually inside the row. */
 .ngx-tree-row-wrapper.ngx-tree-row--dragging {
   opacity: 0.5;
-  border: 1px dashed var(--ngx-tree-action-color);
+  outline: 1px dashed var(--ngx-tree-action-color);
+  outline-offset: -1px;
 }
 
 .ngx-tree-row-wrapper.ngx-tree-row--drag-over-inside {
@@ -253,7 +263,7 @@
 }
 
 .ngx-tree-row-content {
-  min-height: var(--ngx-tree-row-min-height);
+  height: var(--ngx-tree-row-min-height);
   padding: var(--ngx-tree-row-padding);
 }
 
