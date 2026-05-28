@@ -1,0 +1,35 @@
+<div
+  class="ngx-chip"
+  [class.ngx-chip--selected]="selected()"
+  role="button"
+  [attr.aria-pressed]="selected()"
+  tabindex="0"
+  [pTooltip]="tooltipText()"
+  tooltipPosition="top"
+  (click)="onChipClick($event)"
+  (keydown)="onKeyDown($event)"
+>
+  <button
+    class="ngx-chip__delete"
+    type="button"
+    aria-label="Remove"
+    tabindex="-1"
+    (click)="onDeleteClick($event)"
+  >
+    <i class="fas fa-times"></i>
+  </button>
+
+  <span class="ngx-chip__label">{{ label() }}</span>
+
+  <button
+    class="ngx-chip__share"
+    type="button"
+    [attr.aria-label]="shareButtonTooltip()"
+    [pTooltip]="shareButtonTooltip()"
+    tooltipPosition="top"
+    tabindex="-1"
+    (click)="onShareClick($event)"
+  >
+    <i class="fas fa-share-alt"></i>
+  </button>
+</div>

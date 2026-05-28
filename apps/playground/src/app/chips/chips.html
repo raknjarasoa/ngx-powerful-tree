@@ -1,0 +1,25 @@
+<section class="chips-page">
+  <header class="chips-header">
+    <h1>NgxChipComponent</h1>
+    <p>
+      Click a chip to toggle selection. Hover to reveal the delete button. Share button is on the
+      right.
+    </p>
+  </header>
+
+  <div class="chips-row">
+    @for (chip of chips(); track chip.id) {
+    <ngx-chip
+      [label]="chip.label"
+      [selected]="chip.selected"
+      (selectedChange)="onSelectedChange(chip.id, $event)"
+      (shareClick)="onShare(chip.id)"
+      (deleteClick)="onDelete(chip.id)"
+    />
+    }
+  </div>
+
+  @if (lastEvent()) {
+  <p class="chips-event-log">Last event: <code>{{ lastEvent() }}</code></p>
+  }
+</section>

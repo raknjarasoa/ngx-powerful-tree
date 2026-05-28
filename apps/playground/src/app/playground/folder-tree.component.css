@@ -119,6 +119,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 0; /* allows flex item to shrink below content size for ellipsis */
   box-sizing: border-box;
   padding: 6px 12px 6px 0;
   border-radius: 6px;

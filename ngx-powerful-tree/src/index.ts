@@ -3,3 +3,4 @@ export * from './lib/ngx-tree-row.directive';
 export * from './lib/ngx-tree.store';
 export * from './lib/ngx-tree.types';
 export * from './lib/ngx-tree.utils';
+export * from './lib/ngx-chip/ngx-chip';
