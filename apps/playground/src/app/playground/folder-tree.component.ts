@@ -71,6 +71,7 @@ export class FolderTreeComponent {
 
   // --- Relocation state ---
   movingItemId = signal<string | null>(null);
+  selectedDestinationId = signal<string | null>(null);
   isMoveOverlayOpen = signal<boolean>(false);
   overlaySearchQuery = signal<string>('');
 
@@ -327,9 +328,12 @@ export class FolderTreeComponent {
   }
 
   onDestinationSelected(selected: string[]) {
-    // Click instantly moves the item directly without confirmation!
+    this.selectedDestinationId.set(selected[0] || null);
+  }
+
+  confirmMove() {
     const draggedId = this.movingItemId();
-    const targetId = selected[0];
+    const targetId = this.selectedDestinationId();
     if (draggedId && targetId) {
       const tree = this.primaryTree();
       if (tree) {
@@ -356,6 +360,7 @@ export class FolderTreeComponent {
 
   cancelMove() {
     this.movingItemId.set(null);
+    this.selectedDestinationId.set(null);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(false);
   }

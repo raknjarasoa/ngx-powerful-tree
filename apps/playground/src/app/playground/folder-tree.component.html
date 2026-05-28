@@ -119,16 +119,7 @@
           </div>
         </div>
 
-        <!-- Add Root Button between search and tree -->
-        <div class="overlay-root-action-bar">
-          <button
-            class="move-to-root-btn"
-            (click)="onMoveToRoot()"
-            title="Move selected item to the root level"
-          >
-            <i class="fas fa-home"></i> Move to Root Level
-          </button>
-        </div>
+
 
         <!-- Displays FOLDERS ONLY clickable, without files -->
         <div class="overlay-tree-wrapper">
@@ -143,7 +134,21 @@
         </div>
 
         <footer class="overlay-modal-footer">
-          <button class="cancel-btn" (click)="cancelMove()">Cancel</button>
+          <div class="footer-left">
+            <button class="move-to-root-btn-simple" (click)="onMoveToRoot()">
+              <i class="fas fa-home"></i> Root Level
+            </button>
+          </div>
+          <div class="footer-right">
+            <button class="cancel-btn" (click)="cancelMove()">Cancel</button>
+            <button
+              class="confirm-btn"
+              [disabled]="!selectedDestinationId()"
+              (click)="confirmMove()"
+            >
+              Move Here
+            </button>
+          </div>
         </footer>
       </div>
     </div>
