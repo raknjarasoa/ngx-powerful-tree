@@ -142,7 +142,7 @@ export class NgxPowerfulTree implements AfterViewInit {
   }>();
   itemRenamed = output<{ id: string; name: string }>();
   itemAdded = output<{ parentId: string | null; node: NgxTreeNode }>();
-  itemDeleted = output<string>();
+  itemDeleted = output<string[]>();
   selectionChanged = output<string[]>();
   focusedChanged = output<string | null>();
   moveRequested = output<string>();
@@ -307,8 +307,9 @@ export class NgxPowerfulTree implements AfterViewInit {
 
   triggerDelete(id: string, event: MouseEvent) {
     event.stopPropagation();
-    if (this.store.deleteItem(id)) {
-      this.itemDeleted.emit(id);
+    const deletedIds = this.store.deleteItem(id);
+    if (deletedIds.length > 0) {
+      this.itemDeleted.emit(deletedIds);
     }
   }
 
@@ -349,6 +350,11 @@ export class NgxPowerfulTree implements AfterViewInit {
     afterNextRender(
       () => {
         this.store.setEditingItemId(newId);
+        const { indexById } = this.store.flattenedStructure();
+        const idx = indexById[newId];
+        if (idx !== undefined) {
+          this.scrollToIndex(idx);
+        }
       },
       { injector: this.injector }
     );
@@ -400,6 +406,51 @@ export class NgxPowerfulTree implements AfterViewInit {
       case 'Escape':
         event.preventDefault();
         this.store.clearSelection();
+        break;
+
+      case 'ArrowDown':
+        event.preventDefault();
+        if (focusedIdx < list.length - 1) {
+          const nextIdx = focusedIdx + 1;
+          this.store.setFocusedItemId(list[nextIdx].id);
+          this.scrollToIndex(nextIdx);
+        }
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        if (focusedIdx > 0) {
+          const prevIdx = focusedIdx - 1;
+          this.store.setFocusedItemId(list[prevIdx].id);
+          this.scrollToIndex(prevIdx);
+        }
+        break;
+
+      case 'ArrowRight':
+        event.preventDefault();
+        if (currentItem.isFolder) {
+          if (!currentItem.expanded && currentItem.hasVisibleChildren) {
+            this.store.setExpanded(currentItem.id, true);
+          } else if (currentItem.expanded && focusedIdx < list.length - 1) {
+            // First child will be at focusedIdx + 1
+            const nextIdx = focusedIdx + 1;
+            if (list[nextIdx].parentId === currentItem.id) {
+              this.store.setFocusedItemId(list[nextIdx].id);
+              this.scrollToIndex(nextIdx);
+            }
+          }
+        }
+        break;
+
+      case 'ArrowLeft':
+        event.preventDefault();
+        if (currentItem.isFolder && currentItem.expanded) {
+          this.store.setExpanded(currentItem.id, false);
+        } else if (currentItem.parentId !== null) {
+          this.store.setFocusedItemId(currentItem.parentId);
+          const parentIdx = indexById[currentItem.parentId];
+          if (parentIdx !== undefined) this.scrollToIndex(parentIdx);
+        }
         break;
     }
   }
@@ -494,14 +545,17 @@ export class NgxPowerfulTree implements AfterViewInit {
 
   private updateAutoScroll(viewportEl: HTMLElement, mouseY: number) {
     const rect = viewportEl.getBoundingClientRect();
-    const topThreshold = rect.top + 40;
-    const bottomThreshold = rect.bottom - 40;
+    const height = rect.height;
+    // Cap thresholds to height / 2 to avoid overlap on small containers
+    const thresholdZone = Math.min(40, height / 2);
+    const topThreshold = rect.top + thresholdZone;
+    const bottomThreshold = rect.bottom - thresholdZone;
 
     if (mouseY < topThreshold) {
-      const intensity = Math.min(1, Math.max(0, (topThreshold - mouseY) / 40));
+      const intensity = Math.min(1, Math.max(0, (topThreshold - mouseY) / thresholdZone));
       this.startAutoScroll(viewportEl, -1, intensity);
     } else if (mouseY > bottomThreshold) {
-      const intensity = Math.min(1, Math.max(0, (mouseY - bottomThreshold) / 40));
+      const intensity = Math.min(1, Math.max(0, (mouseY - bottomThreshold) / thresholdZone));
       this.startAutoScroll(viewportEl, 1, intensity);
     } else {
       this.stopAutoScroll();

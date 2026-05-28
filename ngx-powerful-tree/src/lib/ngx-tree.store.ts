@@ -5,7 +5,6 @@ import {
   NgxTreeSearchPredicate,
   NgxTreeStructuralItem,
   SelectableTypes,
-  OTHER_USERS_ROOT_ID,
 } from './ngx-tree.types';
 
 const isItemSelectable = (item: NgxTreeItem | undefined, selectable: SelectableTypes): boolean => {
@@ -103,17 +102,26 @@ export class NgxTreeStore {
       const locked = parentLocked || !!item.locked;
 
       const children = item.children || [];
-      let hasFolderChildren = false;
-      if (foldersOnly) {
+      let hasVisibleChildren = false;
+
+      if (isSearching) {
         for (const cid of children) {
-          if (this.itemsMap.get(cid)?.isFolder) {
-            hasFolderChildren = true;
+          if (foldersOnly && !this.itemsMap.get(cid)?.isFolder) continue;
+          if (matchedIds.has(cid) || ancestorIds.has(cid)) {
+            hasVisibleChildren = true;
             break;
           }
         }
+      } else if (foldersOnly) {
+        for (const cid of children) {
+          if (this.itemsMap.get(cid)?.isFolder) {
+            hasVisibleChildren = true;
+            break;
+          }
+        }
+      } else {
+        hasVisibleChildren = children.length > 0;
       }
-
-      const hasVisibleChildren = foldersOnly ? hasFolderChildren : children.length > 0;
 
       indexById[id] = list.length;
       list.push({
@@ -341,8 +349,8 @@ export class NgxTreeStore {
     return true;
   }
 
-  deleteItem(id: string): boolean {
-    if (!this.itemsMap.has(id) || this.isLocked(id)) return false;
+  deleteItem(id: string): string[] {
+    if (!this.itemsMap.has(id) || this.isLocked(id)) return [];
 
     const parentId = this.parentsMap.get(id);
     if (parentId !== undefined && parentId !== null) {
@@ -404,7 +412,7 @@ export class NgxTreeStore {
     }
 
     this.version.update((v) => v + 1);
-    return true;
+    return Array.from(deletedIds);
   }
 
   moveItem(draggedId: string, targetId: string, position: DragPosition): boolean {
@@ -469,7 +477,7 @@ export class NgxTreeStore {
     return true;
   }
 
-  moveToRoot(draggedId: string): boolean {
+  moveToRoot(draggedId: string, insertIndex?: number): boolean {
     if (this.isLocked(draggedId)) return false;
     const dragged = this.itemsMap.get(draggedId);
     if (!dragged) return false;
@@ -485,13 +493,12 @@ export class NgxTreeStore {
       sourceParent.children = sourceParent.children.filter((cid) => cid !== draggedId);
     }
 
-    // Attach to root level, placing it before OTHER_USERS_ROOT_ID if present, to preserve its end position
+    // Attach to root level
     this.parentsMap.set(draggedId, null);
     this.rootIds.update((ids) => {
       const next = ids.filter((cid) => cid !== draggedId);
-      const otherUsersIdx = next.indexOf(OTHER_USERS_ROOT_ID);
-      if (otherUsersIdx !== -1) {
-        next.splice(otherUsersIdx, 0, draggedId);
+      if (insertIndex !== undefined && insertIndex >= 0 && insertIndex <= next.length) {
+        next.splice(insertIndex, 0, draggedId);
       } else {
         next.push(draggedId);
       }

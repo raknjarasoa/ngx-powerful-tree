@@ -20,7 +20,6 @@ import {
   NgxTreeNode,
   NgxTreeSearchPredicate,
   NgxTreeStructuralItem,
-  OTHER_USERS_ROOT_ID,
 } from 'ngx-powerful-tree';
 
 @Component({
@@ -165,7 +164,7 @@ export class FolderTreeComponent {
 
     // 3. Setup "Other Users" Folder strictly at the end
     const otherUsers = makeNode({
-      id: OTHER_USERS_ROOT_ID,
+      id: 'other-users-root',
       name: 'Other Users',
       isFolder: true,
       locked: true,
@@ -245,7 +244,7 @@ export class FolderTreeComponent {
 
     // 4. Fill standard pool to exactly 1,000 items
     const standardFoldersPool: NgxTreeNode[] = roots.filter(
-      (n) => n.id !== OTHER_USERS_ROOT_ID && n.isFolder
+      (n) => n.id !== 'other-users-root' && n.isFolder
     );
 
     const extensions = ['pdf', 'xlsx', 'txt', 'docx', 'png', 'zip', 'json', 'md'];
@@ -366,10 +365,13 @@ export class FolderTreeComponent {
     if (draggedId) {
       const tree = this.primaryTree();
       if (tree) {
-        const moved = tree.store.moveToRoot(draggedId);
+        const rootIds = tree.store.getRootIds();
+        const otherUsersIdx = rootIds.indexOf('other-users-root');
+        const insertIndex = otherUsersIdx !== -1 ? otherUsersIdx : undefined;
+        const moved = tree.store.moveToRoot(draggedId, insertIndex);
         if (moved) {
           // Emit standard movement outputs for subscribers
-          tree.itemMoved.emit({ draggedId, targetId: OTHER_USERS_ROOT_ID, position: 'before' });
+          tree.itemMoved.emit({ draggedId, targetId: 'other-users-root', position: 'before' });
         }
       }
       this.cancelMove();

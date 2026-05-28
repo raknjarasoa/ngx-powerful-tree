@@ -214,7 +214,7 @@ describe('NgxTreeStore', () => {
       child: { id: 'child', name: 'Child', isFolder: false },
     };
     store.setItems(lockedItems, ['locked-root']);
-    expect(store.deleteItem('child')).toBe(false);
+    expect(store.deleteItem('child')).toEqual([]);
     expect(store.getItem('child')).toBeDefined();
   });
 

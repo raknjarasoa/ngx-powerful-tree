@@ -82,5 +82,3 @@ export interface NgxTreeState<T = any> {
   dragState: DragState;
   selectableTypes: SelectableTypes;
 }
-
-export const OTHER_USERS_ROOT_ID = 'other-users-root';

@@ -246,7 +246,7 @@ export class PlaygroundComponent {
 
   onItemAdded(event: { parentId: string | null; node: NgxTreeNode }) {}
 
-  onItemDeleted(id: string) {}
+  onItemDeleted(ids: string[]) {}
 
   onSelectionChanged(selected: string[]) {
     this.selectedIds.set(selected);
