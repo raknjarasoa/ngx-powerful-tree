@@ -65,14 +65,14 @@
           <!-- Relocate / Move Action Button (For Custom File) -->
           <div class="file-actions">
             @if (!item.locked) {
-            <button
-              class="action-btn move-btn"
-              (click)="primaryTree.triggerMove(item.id, $event)"
-              title="Move to folder"
-              tabindex="-1"
-            >
-              <i class="fas fa-exchange-alt"></i>
-            </button>
+              <button
+                class="action-btn move-btn"
+                (click)="primaryTree.triggerMove(item.id, $event)"
+                title="Move to folder"
+                tabindex="-1"
+              >
+                <i class="fas fa-exchange-alt"></i>
+              </button>
             }
           </div>
         </div>
