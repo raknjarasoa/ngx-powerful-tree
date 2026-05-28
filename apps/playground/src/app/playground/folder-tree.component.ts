@@ -6,6 +6,7 @@ import {
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -105,9 +106,9 @@ export class FolderTreeComponent {
     };
 
     // Run immediately
-    trySelect();
+    untracked(() => trySelect());
     // Schedule a small delay to handle async virtual scroll / flattening ticks
-    setTimeout(trySelect, 150);
+    setTimeout(() => untracked(() => trySelect()), 150);
   }
 
   constructor() {
