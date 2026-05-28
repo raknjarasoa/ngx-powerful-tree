@@ -486,25 +486,22 @@ export class NgxPowerfulTree implements AfterViewInit {
     }
   }
 
-  // --- Centralized drag-and-drop & auto-scroll (runs outside Angular zone)
+  // --- Auto-scroll during drag (runs outside Angular zone)
   //
-  // The viewport (not the rows) listens for dragover. We compute the target
-  // row index arithmetically from `scrollTop + clientY` divided by `itemSize`,
-  // so drag evaluation is fully decoupled from recycled row DOM elements.
-  // This eliminates the auto-scroll feedback loop where a screen-stationary
-  // cursor traversing many recycled rows would fire cascading native events.
+  // The component only handles auto-scroll near viewport edges. Drag hit-
+  // testing (target row + before/after/inside) lives in NgxTreeRowDirective:
+  // each row reads its own clientY/rect math from native dragover events.
   //
-  // CONTRACT: every visible row must render at exactly `itemSize` pixels.
-  // The library CSS locks `.ngx-tree-row-wrapper { height: var(...row-min-height) }`
-  // to enforce this. Custom templates must match — a dev-mode warning fires
-  // on first drag if the rendered height diverges from `itemSize()`.
+  // As the viewport auto-scrolls and rows move under the stationary cursor,
+  // browsers fire dragover on whichever row is now under the cursor — no
+  // central re-evaluation is needed. This works because the row CSS locks
+  // every visible row to `itemSize` (no layout shift during drag).
+  //
+  // Custom templates that diverge from `itemSize` are flagged once via a
+  // dev-mode warning the first time a drag starts.
   private readonly scrollSpeedBase = 10;
   private readonly scrollSpeedMax = 14;
   private animationFrameId: number | null = null;
-  private lastDragClientY: number | null = null;
-  private dragEvalRafId: number | null = null;
-  private springLoadTimer: ReturnType<typeof setTimeout> | null = null;
-  private springLoadTargetId: string | null = null;
   private itemSizeWarned = false;
 
   ngAfterViewInit() {
@@ -518,226 +515,28 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     this.ngZone.runOutsideAngular(() => {
       const handleDragOver = (event: DragEvent) => {
-        if (this.readOnly()) return;
-        if (!this.store.draggedItemId()) return;
-
-        event.preventDefault(); // allow drop
-        this.lastDragClientY = event.clientY;
-        this.scheduleDragEval();
+        if (this.readOnly() || !this.store.draggedItemId()) {
+          this.stopAutoScroll();
+          return;
+        }
+        this.maybeWarnItemSizeMismatch(viewportEl, this.itemSize());
         this.updateAutoScroll(viewportEl, event.clientY);
       };
-
-      const handleDragLeave = (event: DragEvent) => {
-        // dragleave fires when entering child rows too. Only clear hover
-        // state when we genuinely leave the viewport subtree.
-        const related = event.relatedTarget as Node | null;
-        if (related && viewportEl.contains(related)) return;
-        this.cancelSpringLoad();
-        this.stopAutoScroll();
-        if (this.store.dragTargetId() !== null) {
-          this.ngZone.run(() => {
-            this.store.dragTargetId.set(null);
-            this.store.dragPosition.set(null);
-          });
-        }
-      };
-
-      const handleDrop = (event: DragEvent) => {
-        if (this.readOnly()) return;
-        event.preventDefault();
-        this.stopAutoScroll();
-        this.cancelSpringLoad();
-        this.cancelDragEval();
-
-        // Evaluate one final time from the drop coordinate for accuracy.
-        this.lastDragClientY = event.clientY;
-        this.evaluateDragPosition();
-
-        const draggedId = this.store.draggedItemId();
-        const targetId = this.store.dragTargetId();
-        const position = this.store.dragPosition();
-
-        this.ngZone.run(() => {
-          if (draggedId && targetId && position && draggedId !== targetId) {
-            if (this.store.moveItem(draggedId, targetId, position)) {
-              this.itemMoved.emit({ draggedId, targetId, position });
-            }
-          }
-          this.store.clearDragState();
-        });
-        this.lastDragClientY = null;
-      };
-
-      const handleDragEnd = () => {
-        // Universal cleanup. Fires on the drag source whether drop succeeded,
-        // was cancelled, or the cursor left the document.
-        this.stopAutoScroll();
-        this.cancelSpringLoad();
-        this.cancelDragEval();
-        this.lastDragClientY = null;
-        if (this.store.draggedItemId() !== null || this.store.dragTargetId() !== null) {
-          this.ngZone.run(() => this.store.clearDragState());
-        }
-      };
+      const stopScroll = () => this.stopAutoScroll();
 
       viewportEl.addEventListener('dragover', handleDragOver);
-      viewportEl.addEventListener('dragleave', handleDragLeave);
-      viewportEl.addEventListener('drop', handleDrop);
-      document.addEventListener('dragend', handleDragEnd);
+      viewportEl.addEventListener('dragleave', stopScroll);
+      viewportEl.addEventListener('drop', stopScroll);
+      document.addEventListener('dragend', stopScroll);
 
       this.destroyRef.onDestroy(() => {
         viewportEl.removeEventListener('dragover', handleDragOver);
-        viewportEl.removeEventListener('dragleave', handleDragLeave);
-        viewportEl.removeEventListener('drop', handleDrop);
-        document.removeEventListener('dragend', handleDragEnd);
+        viewportEl.removeEventListener('dragleave', stopScroll);
+        viewportEl.removeEventListener('drop', stopScroll);
+        document.removeEventListener('dragend', stopScroll);
         this.stopAutoScroll();
-        this.cancelSpringLoad();
-        this.cancelDragEval();
       });
     });
-  }
-
-  private scheduleDragEval() {
-    if (this.dragEvalRafId !== null) return;
-    this.dragEvalRafId = requestAnimationFrame(() => {
-      this.dragEvalRafId = null;
-      this.evaluateDragPosition();
-    });
-  }
-
-  private cancelDragEval() {
-    if (this.dragEvalRafId !== null) {
-      cancelAnimationFrame(this.dragEvalRafId);
-      this.dragEvalRafId = null;
-    }
-  }
-
-  private evaluateDragPosition() {
-    if (this.lastDragClientY === null) return;
-    const vpt = this.viewport();
-    if (!vpt) return;
-    const draggedId = this.store.draggedItemId();
-    if (!draggedId) return;
-
-    const viewportEl = vpt.elementRef.nativeElement;
-    const rect = viewportEl.getBoundingClientRect();
-    const itemSize = this.itemSize();
-    const scrollTop = viewportEl.scrollTop;
-    const relativeY = this.lastDragClientY - rect.top;
-    const absoluteY = scrollTop + relativeY;
-
-    this.maybeWarnItemSizeMismatch(viewportEl, itemSize);
-
-    const { list } = this.store.flattenedStructure();
-    if (list.length === 0) {
-      this.applyDragState(draggedId, null, null);
-      return;
-    }
-
-    // Drop-at-end affordance: if cursor is past the last row, snap to the
-    // last item with position 'after' so the user can append at root level.
-    const rawIndex = Math.floor(absoluteY / itemSize);
-    let itemIndex = rawIndex;
-    let forceAfter = false;
-    if (rawIndex >= list.length) {
-      itemIndex = list.length - 1;
-      forceAfter = true;
-    } else if (rawIndex < 0) {
-      this.applyDragState(draggedId, null, null);
-      return;
-    }
-
-    const targetItem = list[itemIndex];
-    if (targetItem.id === draggedId || targetItem.locked) {
-      this.cancelSpringLoad();
-      this.applyDragState(draggedId, null, null);
-      return;
-    }
-
-    let position: DragPosition;
-    if (forceAfter) {
-      position = 'after';
-    } else {
-      const relativeYToRow = absoluteY - itemIndex * itemSize;
-      if (targetItem.isFolder) {
-        if (relativeYToRow < itemSize * 0.25) position = 'before';
-        else if (relativeYToRow > itemSize * 0.75 && !targetItem.expanded) position = 'after';
-        else position = 'inside';
-      } else {
-        position = relativeYToRow < itemSize * 0.5 ? 'before' : 'after';
-      }
-    }
-
-    this.scheduleSpringLoad(targetItem, position, viewportEl);
-    this.applyDragState(draggedId, targetItem.id, position);
-  }
-
-  private applyDragState(
-    draggedId: string,
-    targetId: string | null,
-    position: DragPosition | null
-  ) {
-    // Avoid redundant signal writes — the row directive's computed signals
-    // would otherwise re-run for every frame even when nothing changed.
-    if (this.store.dragTargetId() === targetId && this.store.dragPosition() === position) return;
-    this.ngZone.run(() => this.store.setDragState(draggedId, targetId, position));
-  }
-
-  // Spring-loaded folder expansion. Hovering 'inside' a collapsed folder for
-  // 800ms expands it so the user can drop deeper. We anchor `scrollTop`
-  // around the expansion so the target row stays put under the cursor
-  // (inserted children would otherwise push it down).
-  private scheduleSpringLoad(
-    targetItem: NgxTreeStructuralItem,
-    position: DragPosition,
-    viewportEl: HTMLElement
-  ) {
-    const shouldSpring =
-      targetItem.isFolder && position === 'inside' && !targetItem.expanded && !targetItem.locked;
-    if (!shouldSpring) {
-      this.cancelSpringLoad();
-      return;
-    }
-    if (this.springLoadTargetId === targetItem.id) return; // already scheduled
-
-    this.cancelSpringLoad();
-    this.springLoadTargetId = targetItem.id;
-    this.springLoadTimer = setTimeout(() => {
-      this.springLoadTimer = null;
-      const id = this.springLoadTargetId;
-      this.springLoadTargetId = null;
-      if (id === null) return;
-
-      const { indexById } = this.store.flattenedStructure();
-      const idx = indexById[id];
-      if (idx === undefined) return;
-      const itemSize = this.itemSize();
-      const expectedTopBefore = idx * itemSize;
-
-      this.ngZone.run(() => this.store.setExpanded(id, true));
-
-      requestAnimationFrame(() => {
-        const { indexById: indexAfter } = this.store.flattenedStructure();
-        const idxAfter = indexAfter[id];
-        if (idxAfter === undefined) return;
-        const expectedTopAfter = idxAfter * itemSize;
-        const drift = expectedTopAfter - expectedTopBefore;
-        if (drift !== 0) {
-          viewportEl.scrollTop += drift;
-          // After the scroll adjustment, the cursor now points at a
-          // different absolute Y. Re-evaluate so the hover target updates.
-          this.scheduleDragEval();
-        }
-      });
-    }, 800);
-  }
-
-  private cancelSpringLoad() {
-    if (this.springLoadTimer !== null) {
-      clearTimeout(this.springLoadTimer);
-      this.springLoadTimer = null;
-    }
-    this.springLoadTargetId = null;
   }
 
   private maybeWarnItemSizeMismatch(viewportEl: HTMLElement, itemSize: number) {
@@ -749,7 +548,7 @@ export class NgxPowerfulTree implements AfterViewInit {
       this.itemSizeWarned = true;
       console.warn(
         `[ngx-powerful-tree] Rendered row height (${measured}px) does not match [itemSize] (${itemSize}px). ` +
-          `Drag hit-testing relies on a fixed itemSize. Either set [itemSize] to match your custom template ` +
+          `Virtual scroll requires a fixed itemSize. Either set [itemSize] to match your custom template ` +
           `height, or override --ngx-tree-row-height-min so the row matches itemSize.`
       );
     }
@@ -782,9 +581,6 @@ export class NgxPowerfulTree implements AfterViewInit {
 
     const scrollFn = () => {
       element.scrollTop += direction * speed;
-      // Cursor is screen-stationary; the row under it changed because we
-      // scrolled. Re-evaluate so hover follows.
-      this.evaluateDragPosition();
       this.animationFrameId = requestAnimationFrame(scrollFn);
     };
 

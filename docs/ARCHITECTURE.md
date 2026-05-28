@@ -249,20 +249,25 @@ The store is exposed as `tree.store`, so consumers can imperatively call
 1. User mousedowns → `dragstart` fires on the row.
 2. `NgxTreeRowDirective.handleDragStart()` builds a lightweight ghost, sets
    `dataTransfer`, and calls `store.setDragState(id, null, null)`.
-3. As the cursor moves, `dragover` fires on the **viewport** (not on rows).
-4. The viewport handler saves `clientY`, schedules one rAF tick, and updates
-   auto-scroll if near edges.
-5. Next frame: `evaluateDragPosition()` computes the index from
-   `(scrollTop + clientY - viewportTop) / itemSize`, looks up the row in
-   `flattenedStructure`, computes the position, and calls
-   `store.setDragState(...)` — only if the value changed.
-6. The store's `dragTargetId` / `dragPosition` signals change.
-7. Each row's `isDragOverBefore/After/Inside` computed re-runs; the matching
+3. As the cursor moves over a row, `dragover` fires on that row.
+4. The row's handler reads `event.clientY - rect.top` against its own
+   `getBoundingClientRect()`, computes `before` / `after` / `inside`, and
+   calls `store.setDragState(...)` — only if the result changed.
+5. The store's `dragTargetId` / `dragPosition` signals change.
+6. Each row's `isDragOverBefore/After/Inside` computed re-runs; the matching
    row toggles its `[class.ngx-tree-row--drag-over-before]` host binding.
-8. On `drop`, the viewport handler re-evaluates one last time, calls
+7. If the cursor enters the top/bottom 40 px of the viewport, the parent
+   component's auto-scroll rAF loop kicks in. As rows scroll past the
+   stationary cursor, the browser naturally fires `dragover` on whichever
+   row is now under it — no central re-evaluation needed.
+8. If the cursor lingers on a collapsed folder's "inside" zone for 800 ms,
+   the row uses a timestamp diff (`Date.now() - hoverStartedAt`) to fire
+   the spring-load expansion. No setTimeout, no timer id — cancellation
+   is automatic when the cursor leaves and resets the timestamp.
+9. On `drop`, the row reads the current store state, calls
    `store.moveItem(...)`, emits `itemMoved`, and clears drag state.
-9. `moveItem` mutates `itemsMap` / `parentsMap` / `rootIds`, bumps `version`,
-   which triggers `flattenedStructure` to recompute, which updates the list.
+10. `moveItem` mutates `itemsMap` / `parentsMap` / `rootIds`, bumps `version`,
+    which triggers `flattenedStructure` to recompute and the list to update.
 
 ### Search "foo"
 
@@ -312,11 +317,11 @@ contributors. Each has a suggested mitigation.
    `ancestorSet` computed plus a `flattenedStructure` that reads them. Each
    half becomes shorter and independently testable.
 
-4. **Drag/drop event + rAF + timer choreography.** Six private fields,
-   nine private methods, three independent timing channels (drag-eval rAF,
-   auto-scroll rAF loop, spring-load `setTimeout`). Mitigation: extract a
-   `NgxTreeDragController` class and use thin `RafSlot` / `TimerSlot`
-   utilities so each channel manages its own cleanup. See section 8.
+4. **Drag/drop coordination.** Was the biggest hot-spot. After moving
+   handlers back to the row directive and replacing the `setTimeout`
+   spring-load with a timestamp diff, the only remaining timing primitive
+   is the auto-scroll rAF loop on the parent component (genuinely needed
+   because the cursor stays still while the viewport scrolls). See section 8.
 
 5. **Template selector precedence**: `itemTemplate ?? (isFolder ? defaultTemplate : (fileTemplate ?? defaultTemplate))`.
    Mitigation: flatten to a `computed` template selector with a self-documenting name.
@@ -328,192 +333,83 @@ contributors. Each has a suggested mitigation.
 
 ---
 
-## 8. Proposed refactor for the drag pipeline
+## 8. How the drag pipeline got simplified
 
-The drag/drop machinery is the densest part of the component. The
-architecture is correct; the implementation can be a lot easier to read.
+An earlier iteration of this library centralized all drag hit-testing on
+the parent component using `(scrollTop + clientY) / itemSize` math. That
+approach was correct but heavy: it required two rAF channels, one timer,
+six private fields, and ~200 lines of orchestration spread across the
+parent. Tracing what triggered what was painful.
 
-**Goal:** turn ~200 lines of `private` fields and `private` methods spread
-across `NgxPowerfulTree` into a single self-contained controller class with
-no manual resource bookkeeping.
+After studying the [`alerubis/angular-draggable-mat-tree`](https://github.com/alerubis/angular-draggable-mat-tree)
+example, the pipeline was rewritten around the following principles:
 
-### Step 1: Thin resource slots
+1. **Each row owns its own drag handlers.** `dragover` / `dragleave` /
+   `drop` are bound on the row directive, not the viewport. The row reads
+   its own `getBoundingClientRect()` (one element, not the whole list) and
+   writes the result to centralized store signals.
 
-Two tiny utility classes that own one rAF id or one timer id and auto-cancel
-on destroy:
+2. **No rAF coalescing for dragover.** The per-event work is small (one
+   rect read, a few arithmetic comparisons, a signal write only if the
+   result changed). At native ~60 Hz, it's well within budget.
 
-```ts
-// drag/raf-slot.ts
-export class RafSlot {
-  private id: number | null = null;
-  constructor(destroyRef: DestroyRef) {
-    destroyRef.onDestroy(() => this.cancel());
-  }
-  schedule(cb: () => void) {
-    if (this.id !== null) return; // coalesce
-    this.id = requestAnimationFrame(() => {
-      this.id = null;
-      cb();
-    });
-  }
-  scheduleLoop(cb: () => void) {
-    this.cancel();
-    const tick = () => {
-      cb();
-      this.id = requestAnimationFrame(tick);
-    };
-    this.id = requestAnimationFrame(tick);
-  }
-  cancel() {
-    if (this.id !== null) {
-      cancelAnimationFrame(this.id);
-      this.id = null;
-    }
-  }
-}
+3. **Spring-loaded folder expansion uses a timestamp diff, not setTimeout.**
+   The row records `Date.now()` on the first hover. Each subsequent
+   `dragover` checks `now - hoverStartedAt > 800`. Cancellation is
+   automatic — `dragleave` resets the timestamp.
 
-// drag/timer-slot.ts
-export class TimerSlot {
-  private id: ReturnType<typeof setTimeout> | null = null;
-  constructor(destroyRef: DestroyRef) {
-    destroyRef.onDestroy(() => this.cancel());
-  }
-  schedule(ms: number, cb: () => void) {
-    this.cancel();
-    this.id = setTimeout(() => {
-      this.id = null;
-      cb();
-    }, ms);
-  }
-  cancel() {
-    if (this.id !== null) {
-      clearTimeout(this.id);
-      this.id = null;
-    }
-  }
-}
-```
+4. **Auto-scroll is the only rAF loop that remains** — and it has to be
+   there, because the cursor stays still while the viewport scrolls.
+   As rows physically move under the stationary cursor, the browser fires
+   `dragover` on whichever row is now under it. No central
+   re-evaluation needed.
 
-Every `if (this.id !== null) cancelAnimationFrame(this.id); this.id = null;`
-pattern disappears. Cleanup on destroy is automatic.
+5. **CSS contract is what makes per-row handlers safe under virtual scroll.**
+   The dragging row uses `outline` (not `border`), and every row has a
+   fixed `height: var(--ngx-tree-row-min-height)`. Without these two,
+   class changes during drag would cause layout shift and trigger the
+   classic feedback loop. With them, rows stay exactly `itemSize` pixels
+   tall, virtual scroll is happy, and per-row handlers behave.
 
-### Step 2: A `NgxTreeDragController`
+### What the parent component still owns
 
-A plain class (no Angular decorator) that owns the whole pipeline:
+Only auto-scroll. Four numbers, one rAF id, ~80 lines:
 
 ```ts
-// drag/ngx-tree-drag-controller.ts
-export interface DragDeps {
-  store: NgxTreeStore;
-  ngZone: NgZone;
-  destroyRef: DestroyRef;
-  viewport: () => CdkVirtualScrollViewport | undefined;
-  itemSize: () => number;
-  readOnly: () => boolean;
-  emitMoved: (e: { draggedId: string; targetId: string; position: DragPosition }) => void;
-}
-
-export class NgxTreeDragController {
-  private static readonly SCROLL_BASE = 10;
-  private static readonly SCROLL_MAX = 14;
-  private static readonly SPRING_DELAY_MS = 800;
-  private static readonly EDGE_PX = 40;
-
-  private readonly evalSlot: RafSlot;
-  private readonly scrollSlot: RafSlot;
-  private readonly springSlot: TimerSlot;
-  private lastClientY: number | null = null;
-  private springTargetId: string | null = null;
-  private itemSizeWarned = false;
-
-  constructor(private deps: DragDeps) {
-    this.evalSlot = new RafSlot(deps.destroyRef);
-    this.scrollSlot = new RafSlot(deps.destroyRef);
-    this.springSlot = new TimerSlot(deps.destroyRef);
-  }
-
-  attach() {
-    const vpt = this.deps.viewport();
-    if (!vpt) return;
-    const el = vpt.elementRef.nativeElement;
-
-    this.deps.ngZone.runOutsideAngular(() => {
-      el.addEventListener('dragover', this.onDragOver);
-      el.addEventListener('dragleave', this.onDragLeave);
-      el.addEventListener('drop', this.onDrop);
-      document.addEventListener('dragend', this.onDragEnd);
-
-      this.deps.destroyRef.onDestroy(() => {
-        el.removeEventListener('dragover', this.onDragOver);
-        el.removeEventListener('dragleave', this.onDragLeave);
-        el.removeEventListener('drop', this.onDrop);
-        document.removeEventListener('dragend', this.onDragEnd);
-      });
-    });
-  }
-
-  // Arrow-property handlers — auto-bound, no `bind(this)` boilerplate.
-  private onDragOver = (e: DragEvent) => {
-    /* … */
-  };
-  private onDragLeave = (e: DragEvent) => {
-    /* … */
-  };
-  private onDrop = (e: DragEvent) => {
-    /* … */
-  };
-  private onDragEnd = () => {
-    /* … */
-  };
-
-  private evaluate() {
-    /* … */
-  }
-  private updateAutoScroll(viewportEl: HTMLElement, mouseY: number) {
-    /* … */
-  }
-}
-```
-
-### Step 3: Wire it into the component
-
-`NgxPowerfulTree.ngAfterViewInit` shrinks to:
-
-```ts
-private dragController = new NgxTreeDragController({
-  store: this.store,
-  ngZone: this.ngZone,
-  destroyRef: this.destroyRef,
-  viewport: () => this.viewport(),
-  itemSize: () => this.itemSize(),
-  readOnly: () => this.readOnly(),
-  emitMoved: (e) => this.itemMoved.emit(e),
-});
+private readonly scrollSpeedBase = 10;
+private readonly scrollSpeedMax = 14;
+private animationFrameId: number | null = null;
+private itemSizeWarned = false;
 
 ngAfterViewInit() {
-  if (!isPlatformBrowser(this.platformId)) return;
-  this.dragController.attach();
+  // Bind dragover on the viewport ONLY for auto-scroll near edges.
+  // dragleave / drop / dragend just stop the rAF loop.
 }
 ```
 
-### What this buys you
+### What the row directive owns
 
-- The component drops ~200 lines of drag code and 6 private fields.
-- The drag pipeline becomes a single file you can read top-to-bottom.
-- Cleanup is automatic — the slots wire themselves to `destroyRef`.
-- Each timing channel (eval / scroll / spring-load) has its own slot, so
-  the "is this id still valid?" branching vanishes.
-- The controller can be unit-tested with a fake `DragDeps` — no `TestBed`
-  needed for math-only tests.
-- Spring-load delay, scroll speed, edge threshold become named static
-  constants instead of scattered numeric literals.
+Per row, two private fields:
 
-### What it does NOT change
+```ts
+private dragGhostEl: HTMLElement | null = null;
+private springLoadHoverStartedAt: number | null = null;
+```
 
-- The architecture (centralized math-based hit-testing) stays the same.
-- The store contract is untouched.
-- The row directive is untouched.
-- No new dependencies (no RxJS for this — signals + small classes are enough).
+Plus four handlers (`dragstart`, `dragover`, `dragleave`, `drop`) and a
+`dragend` bound dynamically on the source element during drag.
 
-This is a refactor in scope, not a rewrite. It can ship as a non-breaking
-patch immediately after the current hybrid fix lands.
+### Tradeoffs vs. the centralized math approach
+
+| Concern                                     | Centralized math      | Per-row events (current)                         |
+| ------------------------------------------- | --------------------- | ------------------------------------------------ |
+| Hit-test cost during stationary auto-scroll | one math op           | one rect read + one comparison per row crossed   |
+| Spring-load mechanism                       | setTimeout + timer id | timestamp diff                                   |
+| Total timing primitives                     | 3 (2 rAF + 1 timer)   | 1 (auto-scroll rAF)                              |
+| Code volume                                 | ~200 lines            | ~80 lines (row) + ~80 lines (parent auto-scroll) |
+| DOM-independent hit-testing                 | yes                   | no — relies on row's rect                        |
+| Drop-at-end-of-list affordance              | built into math       | not implemented (revertible)                     |
+
+The DOM-independent property of math-based hit-testing sounded nice but
+was never actually needed — a cursor can only hover over rendered rows by
+definition. The simpler per-row approach is the better fit.

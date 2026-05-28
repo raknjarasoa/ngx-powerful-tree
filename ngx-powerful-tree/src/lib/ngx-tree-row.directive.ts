@@ -14,6 +14,11 @@ import {
 import { NgxTreeStore } from './ngx-tree.store';
 import { DragPosition, NgxTreeStructuralItem } from './ngx-tree.types';
 
+// Spring-load delay for auto-expanding a folder when the cursor lingers
+// over its "inside" zone. Measured by Date.now() diff rather than a
+// setTimeout id, so cancellation is implicit (a new hover resets the clock).
+const SPRING_LOAD_DELAY_MS = 800;
+
 @Directive({
   selector: '[ngxTreeRow]',
   standalone: true,
@@ -49,14 +54,15 @@ export class NgxTreeRowDirective implements OnInit {
   private platformId = inject(PLATFORM_ID);
 
   private dragGhostEl: HTMLElement | null = null;
+  // Timestamp of when the cursor first entered this row's "inside" zone
+  // during the current drag. Used for timestamp-diff spring-load instead
+  // of a setTimeout — cancellation is implicit (cleared on dragleave).
+  private springLoadHoverStartedAt: number | null = null;
 
   item = input.required<NgxTreeStructuralItem>();
   readOnly = input<boolean>(false);
   locked = input<boolean>(false);
 
-  // Kept for backward compatibility — NgxPowerfulTree now emits itemMoved
-  // directly from its centralized drop handler, but consumers may still
-  // listen on this row-level output.
   itemMoved = output<{ draggedId: string; targetId: string; position: DragPosition }>();
 
   ariaExpanded = computed(() => (this.item().isFolder ? this.item().expanded.toString() : null));
@@ -74,9 +80,8 @@ export class NgxTreeRowDirective implements OnInit {
   isLocked = computed(() => this.locked());
   isDragging = computed(() => this.store.draggedItemId() === this.item().id);
 
-  // Drag-over indicators read from the centralized store. No DOM mutation
-  // happens here — Angular applies the classes via host bindings when these
-  // computeds change.
+  // Drag-over classes are driven by store signals — no row mutates the DOM
+  // directly. Host bindings make Angular swap classes when the computed flips.
   isDragOverInside = computed(
     () => this.store.dragTargetId() === this.item().id && this.store.dragPosition() === 'inside'
   );
@@ -100,11 +105,20 @@ export class NgxTreeRowDirective implements OnInit {
     this.ngZone.runOutsideAngular(() => {
       const el = this.el.nativeElement as HTMLElement;
       const onDragStart = (e: DragEvent) => this.handleDragStart(e);
+      const onDragOver = (e: DragEvent) => this.handleDragOver(e);
+      const onDragLeave = (e: DragEvent) => this.handleDragLeave(e);
+      const onDrop = (e: DragEvent) => this.handleDrop(e);
 
       el.addEventListener('dragstart', onDragStart);
+      el.addEventListener('dragover', onDragOver);
+      el.addEventListener('dragleave', onDragLeave);
+      el.addEventListener('drop', onDrop);
 
       this.destroyRef.onDestroy(() => {
         el.removeEventListener('dragstart', onDragStart);
+        el.removeEventListener('dragover', onDragOver);
+        el.removeEventListener('dragleave', onDragLeave);
+        el.removeEventListener('drop', onDrop);
         this.removeDragGhost();
       });
     });
@@ -123,9 +137,8 @@ export class NgxTreeRowDirective implements OnInit {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', this.item().id);
 
-      // Lightweight text ghost rather than cloneNode(true). Deep-cloning a
-      // styled row at dragstart forces a full document reflow; a small
-      // single-purpose element keeps the start of the drag jank-free.
+      // Lightweight text ghost instead of cloneNode(true): a deep clone of
+      // a styled row forces a full document reflow at dragstart.
       const ghost = document.createElement('div');
       ghost.textContent = this.item().name;
       ghost.style.cssText =
@@ -142,19 +155,107 @@ export class NgxTreeRowDirective implements OnInit {
       event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
     }
 
-    // dragstart fires inside the zone block (runOutsideAngular). Wrap the
-    // signal write so dependent effects see the change.
     this.ngZone.run(() => {
       this.store.setDragState(this.item().id, null, null);
     });
 
-    // dragend on the source element is the only reliable cleanup for the
-    // ghost when the drop happens outside any handler.
+    // Bind dragend on the source so cleanup is reliable even when the drop
+    // happens outside the viewport — and virtual scroll can't recycle this
+    // element before the drag ends, since it's the active drag source.
     const onDragEnd = () => {
       this.removeDragGhost();
       sourceEl.removeEventListener('dragend', onDragEnd);
+      this.springLoadHoverStartedAt = null;
+      if (this.store.draggedItemId() !== null) {
+        this.ngZone.run(() => this.store.clearDragState());
+      }
     };
     sourceEl.addEventListener('dragend', onDragEnd);
+  }
+
+  private handleDragOver(event: DragEvent) {
+    if (this.readOnly() || this.locked()) return;
+    const draggedId = this.store.draggedItemId();
+    if (!draggedId || draggedId === this.item().id) return;
+
+    event.preventDefault(); // allow drop
+
+    // Use the row's own rect (one element, not the whole viewport). Modern
+    // browsers cache this and the cost is amortized; the original feedback
+    // loop came from layout-shifting CSS, not from reading rects.
+    const el = this.el.nativeElement as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const height = rect.height || 1;
+    const relativeY = event.clientY - rect.top;
+
+    let position: DragPosition;
+    if (this.item().isFolder) {
+      if (relativeY < height * 0.25) position = 'before';
+      else if (relativeY > height * 0.75 && !this.item().expanded) position = 'after';
+      else position = 'inside';
+    } else {
+      position = relativeY < height * 0.5 ? 'before' : 'after';
+    }
+
+    // Spring-load expansion via timestamp diff. No setTimeout, no timer id
+    // to track — cancellation is "cursor leaves" resetting the timestamp.
+    if (this.item().isFolder && position === 'inside' && !this.item().expanded) {
+      const now = Date.now();
+      if (this.springLoadHoverStartedAt === null) {
+        this.springLoadHoverStartedAt = now;
+      } else if (now - this.springLoadHoverStartedAt > SPRING_LOAD_DELAY_MS) {
+        this.springLoadHoverStartedAt = null; // expand once per hover session
+        this.ngZone.run(() => this.store.setExpanded(this.item().id, true));
+      }
+    } else {
+      this.springLoadHoverStartedAt = null;
+    }
+
+    // Only write to the store when the result changes; otherwise every
+    // dragover (~60 Hz) would needlessly re-run row computeds.
+    if (this.store.dragTargetId() !== this.item().id || this.store.dragPosition() !== position) {
+      this.ngZone.run(() => this.store.setDragState(draggedId, this.item().id, position));
+    }
+  }
+
+  private handleDragLeave(event: DragEvent) {
+    // dragleave also fires when the cursor enters a child element. Use
+    // relatedTarget to distinguish: if we're moving to a descendant of this
+    // row, we haven't really left.
+    const related = event.relatedTarget as Node | null;
+    const el = this.el.nativeElement as HTMLElement;
+    if (related && el.contains(related)) return;
+
+    this.springLoadHoverStartedAt = null;
+
+    // Only clear the store target if WE'RE still it. Otherwise another row
+    // already claimed it via its own dragover (browsers fire dragenter+over
+    // on the new target before dragleave on the old one).
+    if (this.store.dragTargetId() === this.item().id) {
+      this.ngZone.run(() => {
+        this.store.dragTargetId.set(null);
+        this.store.dragPosition.set(null);
+      });
+    }
+  }
+
+  private handleDrop(event: DragEvent) {
+    if (this.readOnly() || this.locked()) return;
+    event.preventDefault();
+    this.springLoadHoverStartedAt = null;
+
+    const draggedId = this.store.draggedItemId();
+    const targetId = this.store.dragTargetId();
+    const position = this.store.dragPosition();
+
+    this.ngZone.run(() => {
+      if (draggedId && targetId && position && draggedId !== targetId) {
+        if (this.store.moveItem(draggedId, targetId, position)) {
+          this.itemMoved.emit({ draggedId, targetId, position });
+        }
+      }
+      this.store.clearDragState();
+    });
   }
 
   private removeDragGhost() {
