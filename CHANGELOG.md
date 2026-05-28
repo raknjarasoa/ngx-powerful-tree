@@ -1,3 +1,9 @@
+# [2.5.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.4.0...v2.5.0) (2026-05-28)
+
+### Features
+
+- manually trigger next version ([25aecd6](https://github.com/raknjarasoa/ngx-powerful-tree/commit/25aecd6af7ac8eff7994589b37278512f80ebdd3))
+
 # [2.4.0](https://github.com/raknjarasoa/ngx-powerful-tree/compare/v2.3.0...v2.4.0) (2026-05-27)
 
 ### Features
