@@ -114,84 +114,36 @@
   --ngx-tree-row-height-min: 48px;
 }
 
-/* Custom File Template Styles */
+/* Custom File Template Styles — grid mirrors the folder row layout */
 .custom-file-row {
-  display: flex;
+  /* Three columns: indent spacer | chip (1fr) | move button (auto) */
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
   align-items: center;
   width: 100%;
-  min-width: 0; /* allows flex item to shrink below content size for ellipsis */
+  /* Height MUST match [itemSize]="48" — virtual scroll allocates exactly that per row */
+  height: 48px;
   box-sizing: border-box;
-  padding: 6px 12px 6px 0;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-  cursor: pointer; /* make row visually clickable */
-}
-
-.custom-file-row:hover {
-  background-color: rgba(99, 102, 241, 0.05); /* Highlight whole row on hover */
+  padding-right: 4px;
+  min-width: 0;
+  /* Whitespace between chip and move button is non-clickable;
+     chip and button re-enable pointer-events individually */
+  pointer-events: none;
 }
 
 .expand-spacer {
-  width: 26px;
-  flex-shrink: 0;
+  /* 26px column keeps chip aligned with the folder name (matches arrow placeholder) */
 }
 
-.file-icon-wrapper {
-  color: #6366f1;
-  font-size: 1rem;
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.file-info {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  min-width: 0; /* allows text truncation */
-  gap: 2px;
-}
-
-.file-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #334155;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.file-name--matched {
-  background-color: rgba(253, 224, 71, 0.4);
-  border-radius: 2px;
-  padding: 0 2px;
-}
-
-.file-description {
-  font-size: 0.72rem;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 400;
-}
-
-.file-actions {
-  display: flex;
-  align-items: center;
-  margin-left: 8px;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
-}
-
-.custom-file-row:hover .file-actions {
-  opacity: 1;
+/* ngx-chip fills the 1fr cell; grid blockifies it so max-width: 100% truncates correctly */
+ngx-chip.file-chip {
+  min-width: 0;
+  max-width: 100%;
+  pointer-events: all;
 }
 
 .action-btn {
+  pointer-events: all;
   background: none;
   border: none;
   cursor: pointer;
@@ -200,13 +152,34 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition: all 0.15s ease;
   color: #64748b;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .move-btn:hover {
   background-color: rgba(99, 102, 241, 0.1);
   color: #4f46e5;
+}
+
+/* Drag ghost for file rows: pill shape matching ngx-chip appearance */
+::ng-deep .ngx-tree-drag-ghost--file {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid #1a7a7a;
+  background-color: #ffffff;
+  color: #1a7a7a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Deferrable Move Overlay backdrop - Integrated inline inside tree popover container */
