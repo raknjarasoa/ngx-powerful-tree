@@ -249,6 +249,18 @@ export class PlaygroundComponent {
 
   onItemDeleted(id: string) {}
 
+  // Latest full folder/file structure emitted by the tree, plus how many times
+  // it has changed since load. In a real app this is where you'd persist the
+  // new structure back to the server (debounced).
+  latestStructure = signal<NgxTreeNode[] | null>(null);
+  structureChangeCount = signal(0);
+
+  onStructureChanged(structure: NgxTreeNode[]) {
+    this.latestStructure.set(structure);
+    this.structureChangeCount.update((n) => n + 1);
+    console.log('Structure changed:', structure);
+  }
+
   onSelectionChanged(selected: string[]) {
     this.selectedIds.set(selected);
   }

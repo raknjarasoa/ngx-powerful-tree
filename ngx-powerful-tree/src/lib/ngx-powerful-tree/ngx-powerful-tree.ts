@@ -114,6 +114,14 @@ export class NgxPowerfulTree implements AfterViewInit {
   readOnly = input<boolean>(false);
   searchPredicate = input<NgxTreeSearchPredicate | null>(null);
   /**
+   * Opt-in: when `true`, the component emits `structureChanged` with the full
+   * nested structure after every add/rename/delete/move. Off by default
+   * because rebuilding the whole tree on each mutation is O(N); leave it off
+   * (and call `getStructure()` on demand) for very large trees. See the
+   * `structureChanged` output for the batching semantics.
+   */
+  emitStructureChanges = input<boolean>(false);
+  /**
    * Per-inline-action availability. Omitted keys default to `true`, so
    * `[actions]="{ delete: false }"` keeps the other actions enabled.
    * Each action accepts a boolean or a predicate fn that receives the row.
@@ -146,6 +154,17 @@ export class NgxPowerfulTree implements AfterViewInit {
   selectionChanged = output<string[]>();
   focusedChanged = output<string | null>();
   moveRequested = output<string>();
+  /**
+   * Emits the new folder/file structure as a nested {@link NgxTreeNode}[] —
+   * the same shape you load from the server — after each structural change.
+   * Requires `[emitStructureChanges]="true"`.
+   *
+   * Emissions are coalesced: several mutations in the same tick (e.g. a move
+   * that detaches and reattaches) produce a single emission with the final
+   * state. The initial seed from `nodes` is NOT emitted (you already have it);
+   * the first emission is the first change after load.
+   */
+  structureChanged = output<NgxTreeNode[]>();
 
   // --- Signal queries ---
   itemTemplate = contentChild<TemplateRef<unknown>>('itemTemplate');
@@ -156,6 +175,10 @@ export class NgxPowerfulTree implements AfterViewInit {
 
   private initialized = false;
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  // Structure-version baseline for the structureChanged emitter. `null` until
+  // the emit effect first observes the version; thereafter holds the last
+  // emitted version so unchanged re-runs (e.g. toggling the flag) don't re-emit.
+  private structureBaselineVersion: number | null = null;
 
   constructor() {
     // 1. One-shot seed from the `nodes` input. Subsequent emissions are
@@ -249,6 +272,37 @@ export class NgxPowerfulTree implements AfterViewInit {
         untracked(() => this.stopAutoScroll());
       }
     });
+
+    // 9. Emit the full nested structure after each structural change, but only
+    // when opted in. When the flag is off the effect returns before touching
+    // structureVersion, so it never tracks it and there's zero overhead. The
+    // effect runs at most once per tick, so a burst of mutations coalesces
+    // into a single O(N) rebuild + emission. The first observation establishes
+    // a baseline (the seed/current state) and is NOT emitted.
+    effect(() => {
+      if (!this.emitStructureChanges()) return;
+      const v = this.store.structureVersion();
+      untracked(() => {
+        if (this.structureBaselineVersion === null) {
+          this.structureBaselineVersion = v;
+          return;
+        }
+        if (v === this.structureBaselineVersion) return;
+        this.structureBaselineVersion = v;
+        this.structureChanged.emit(this.store.getStructure());
+      });
+    });
+  }
+
+  /**
+   * Returns the current folder/file structure as a nested
+   * {@link NgxTreeNode}[] — the same shape passed to the `nodes` input.
+   * On-demand alternative to the `structureChanged` output: call it whenever
+   * you actually need the snapshot (e.g. on save) instead of paying the O(N)
+   * rebuild on every mutation.
+   */
+  public getStructure(): NgxTreeNode[] {
+    return this.store.getStructure();
   }
 
   trackById(index: number, item: NgxTreeStructuralItem): string {
@@ -324,10 +378,18 @@ export class NgxPowerfulTree implements AfterViewInit {
   /**
    * Reload the dataset. Clears expand/select/focus/search/drag state.
    * Accepts the same nested NgxTreeNode[] shape as the `nodes` input.
+   *
+   * Treated like the initial seed for `structureChanged`: swapping the dataset
+   * does NOT emit (the caller already has the structure it just set), which
+   * also avoids a save → reload → structureChanged feedback loop. The next
+   * user-driven mutation after a reload emits as usual.
    */
   public reload(nodes: NgxTreeNode[]) {
     const { items, rootIds } = flattenNodes(nodes);
     this.store.reload(items, rootIds);
+    // Re-baseline so the post-reload version becomes the new "no change yet"
+    // reference instead of being reported as a structural change.
+    this.structureBaselineVersion = null;
   }
 
   private createFolder(parentId: string | null, name = 'New Folder') {

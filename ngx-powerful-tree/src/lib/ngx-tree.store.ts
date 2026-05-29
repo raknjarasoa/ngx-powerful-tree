@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import {
   DragPosition,
   NgxTreeItem,
+  NgxTreeNode,
   NgxTreeSearchPredicate,
   NgxTreeStructuralItem,
   SelectableTypes,
@@ -40,6 +41,11 @@ export class NgxTreeStore {
 
   // Bump this version signal whenever itemsMap/parentsMap/rootIds structurally change
   private readonly version = signal(0);
+
+  // Read-only view of the structural version. Increments on every add, rename,
+  // delete, move, and reload. Consumers can depend on this to react to
+  // structure changes without coupling to the internal `version` signal.
+  readonly structureVersion = this.version.asReadonly();
 
   // --- Computed Views ---
   readonly flattenedStructure = computed(() => {
@@ -523,5 +529,32 @@ export class NgxTreeStore {
       record[key] = value;
     }
     return record;
+  }
+
+  /**
+   * Reconstruct the public nested {@link NgxTreeNode} structure (folders
+   * containing files and other folders) from the internal flat maps — the
+   * same shape consumers pass to the `nodes` input on load. O(N) in the
+   * number of items: it walks every node once and allocates a fresh object
+   * per node, so call it on demand rather than in a hot loop.
+   */
+  getStructure(): NgxTreeNode[] {
+    const visit = (id: string): NgxTreeNode | null => {
+      const item = this.itemsMap.get(id);
+      if (!item) return null;
+      const children = item.children?.map(visit).filter((c): c is NgxTreeNode => c !== null);
+      return {
+        id: item.id,
+        name: item.name,
+        isFolder: item.isFolder,
+        children: children?.length ? children : undefined,
+        data: item.data,
+        locked: item.locked,
+        icon: item.icon,
+      };
+    };
+    return this.rootIds()
+      .map(visit)
+      .filter((n): n is NgxTreeNode => n !== null);
   }
 }
