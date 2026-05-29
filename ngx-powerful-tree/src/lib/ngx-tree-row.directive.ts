@@ -54,6 +54,10 @@ export class NgxTreeRowDirective implements OnInit {
   private platformId = inject(PLATFORM_ID);
 
   private dragGhostEl: HTMLElement | null = null;
+  // Detaches the drag teardown safety-net listeners registered on dragstart.
+  // Non-null only while this row is the active drag source; calling it is
+  // idempotent via endDrag().
+  private detachDragEndListeners: (() => void) | null = null;
   // Timestamp of when the cursor first entered this row's "inside" zone
   // during the current drag. Used for timestamp-diff spring-load instead
   // of a setTimeout — cancellation is implicit (cleared on dragleave).
@@ -119,6 +123,9 @@ export class NgxTreeRowDirective implements OnInit {
         el.removeEventListener('dragover', onDragOver);
         el.removeEventListener('dragleave', onDragLeave);
         el.removeEventListener('drop', onDrop);
+        // If the row is destroyed mid-drag (e.g. virtual-scroll recycling),
+        // tear down the active drag so listeners and the ghost don't leak.
+        this.endDrag();
         this.removeDragGhost();
       });
     });
@@ -157,18 +164,63 @@ export class NgxTreeRowDirective implements OnInit {
       this.store.setDragState(this.item().id, null, null);
     });
 
-    // Bind dragend on the source so cleanup is reliable even when the drop
-    // happens outside the viewport — and virtual scroll can't recycle this
-    // element before the drag ends, since it's the active drag source.
-    const onDragEnd = () => {
-      this.removeDragGhost();
-      sourceEl.removeEventListener('dragend', onDragEnd);
-      this.springLoadHoverStartedAt = null;
-      if (this.store.draggedItemId() !== null) {
-        this.ngZone.run(() => this.store.clearDragState());
-      }
+    this.attachDragEndSafetyNet(sourceEl);
+  }
+
+  // Wire up drag teardown. `dragend` is the happy path, but it is NOT
+  // guaranteed to fire: pausing in the debugger during `dragstart`, the
+  // source element being detached mid-drag (e.g. a PrimeNG overlay/popover
+  // re-rendering or virtual-scroll recycling), or an OS-level drag cancel can
+  // all swallow it. When that happens the row stays stuck with the
+  // `--dragging` class (grayed out), the ghost leaks, and the tree believes a
+  // drag is still in progress — freezing further interaction.
+  //
+  // So we don't rely on `dragend` alone. During a real native drag the browser
+  // suppresses mouse events, so a `mouseup`/`pointerup` reaching us means the
+  // drag never truly armed (or already ended) — a safe signal to recover.
+  // Escape covers keyboard cancels. Document-level `dragend`/`drop` (capture)
+  // still fire even if the source element is recycled out from under us. Every
+  // listener is removed the moment teardown runs, so nothing leaks between
+  // drags.
+  private attachDragEndSafetyNet(sourceEl: HTMLElement) {
+    // Defensively clear any stale set from a prior drag before re-arming.
+    this.detachDragEndListeners?.();
+
+    const teardown = () => this.endDrag();
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.endDrag();
     };
-    sourceEl.addEventListener('dragend', onDragEnd);
+
+    sourceEl.addEventListener('dragend', teardown);
+    document.addEventListener('dragend', teardown, true);
+    document.addEventListener('drop', teardown, true);
+    document.addEventListener('mouseup', teardown, true);
+    document.addEventListener('pointerup', teardown, true);
+    document.addEventListener('keydown', onKeydown, true);
+
+    this.detachDragEndListeners = () => {
+      sourceEl.removeEventListener('dragend', teardown);
+      document.removeEventListener('dragend', teardown, true);
+      document.removeEventListener('drop', teardown, true);
+      document.removeEventListener('mouseup', teardown, true);
+      document.removeEventListener('pointerup', teardown, true);
+      document.removeEventListener('keydown', onKeydown, true);
+    };
+  }
+
+  // Idempotent drag teardown: detach the safety-net listeners, drop the ghost,
+  // reset spring-load, and clear the global drag state. Safe to call from any
+  // of the (possibly several) teardown triggers — the first call wins and the
+  // rest no-op because `detachDragEndListeners` is nulled out.
+  private endDrag() {
+    if (!this.detachDragEndListeners) return; // already torn down / not dragging
+    this.detachDragEndListeners();
+    this.detachDragEndListeners = null;
+    this.removeDragGhost();
+    this.springLoadHoverStartedAt = null;
+    if (this.store.draggedItemId() !== null) {
+      this.ngZone.run(() => this.store.clearDragState());
+    }
   }
 
   private handleDragOver(event: DragEvent) {
