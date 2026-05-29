@@ -49,6 +49,32 @@ const dispatchDrop = (el: HTMLElement) => {
   el.dispatchEvent(event);
 };
 
+const dispatchDragEnd = (el: HTMLElement) => {
+  const event = new Event('dragend', { bubbles: true, cancelable: true });
+  el.dispatchEvent(event);
+};
+
+// Variant that carries a minimal fake DataTransfer so the ghost code path
+// runs (jsdom does not synthesize a real one). getBoundingClientRect is
+// stubbed by the suite, so the ghost's size math stays deterministic.
+const dispatchDragStartWithGhost = (el: HTMLElement) => {
+  const dataTransfer = {
+    effectAllowed: 'none',
+    setData: () => undefined,
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+  const event = new Event('dragstart', { bubbles: true, cancelable: true }) as Event & {
+    dataTransfer: DataTransfer | null;
+    clientX: number;
+    clientY: number;
+  };
+  event.dataTransfer = dataTransfer;
+  event.clientX = 0;
+  event.clientY = 0;
+  el.dispatchEvent(event);
+  return event;
+};
+
 const dispatchDragStart = (el: HTMLElement) => {
   const event = new Event('dragstart', { bubbles: true, cancelable: true }) as Event & {
     dataTransfer: DataTransfer | null;
@@ -118,6 +144,91 @@ describe('NgxTreeRowDirective', () => {
   it('sets store.draggedItemId on dragstart of a normal row', () => {
     dispatchDragStart(rows[1]);
     expect(component.store.draggedItemId()).toBe('file-a');
+  });
+
+  // ----- drag teardown / freeze recovery ------------------------------------
+  //
+  // All cleanup used to hang off `dragend`. But that event is not guaranteed
+  // to fire (debugger pause during dragstart, source element detached mid-drag
+  // by an overlay/popover, OS-level cancel). When it was swallowed the row
+  // stayed stuck with draggedItemId set — grayed out and freezing the tree.
+  // These assert the non-drag recovery paths self-heal that stuck state.
+
+  it('clears drag state on dragend (happy path)', () => {
+    dispatchDragStart(rows[1]);
+    expect(component.store.draggedItemId()).toBe('file-a');
+
+    dispatchDragEnd(rows[1]);
+    expect(component.store.draggedItemId()).toBeNull();
+  });
+
+  it('recovers stuck drag state on mouseup when dragend never fires', () => {
+    dispatchDragStart(rows[1]);
+    expect(component.store.draggedItemId()).toBe('file-a');
+
+    // Simulate the drag dying without a dragend (the freeze scenario). A real
+    // native drag suppresses mouse events, so a mouseup reaching us means the
+    // drag never armed — recover.
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(component.store.draggedItemId()).toBeNull();
+  });
+
+  // ----- drag ghost lifetime -------------------------------------------------
+  //
+  // The ghost only needs to exist while the browser snapshots it into the
+  // drag-image bitmap (during dragstart). Keeping it alive for the whole drag
+  // is pure leak surface, so it is dropped on the next frame. It is also
+  // off-screen + pointer-events:none, so it can never block the page even if
+  // it lingers.
+
+  it('removes the drag ghost one frame after dragstart', () => {
+    // Holder object so TS keeps the captured callback's type (a bare `let`
+    // assigned only inside the closure would narrow to `never` at the call).
+    const raf: { cb: FrameRequestCallback | null } = { cb: null };
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      raf.cb = cb;
+      return 1 as unknown as number;
+    }) as typeof requestAnimationFrame;
+    try {
+      dispatchDragStartWithGhost(rows[1]);
+      expect(document.querySelector('.ngx-tree-drag-ghost')).not.toBeNull();
+
+      // Bitmap captured; the deferred frame drops the node.
+      raf.cb?.(0);
+      expect(document.querySelector('.ngx-tree-drag-ghost')).toBeNull();
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it('removes the ghost on teardown even if the deferred frame never runs', () => {
+    const originalRaf = globalThis.requestAnimationFrame;
+    // rAF that never invokes its callback — simulates a frame that is missed
+    // (e.g. drag ends within the same frame, or a backgrounded tab).
+    globalThis.requestAnimationFrame = (() =>
+      1 as unknown as number) as typeof requestAnimationFrame;
+    try {
+      dispatchDragStartWithGhost(rows[1]);
+      expect(document.querySelector('.ngx-tree-drag-ghost')).not.toBeNull();
+
+      dispatchDragEnd(rows[1]);
+      expect(document.querySelector('.ngx-tree-drag-ghost')).toBeNull();
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it('detaches recovery listeners after teardown (no cross-drag leakage)', () => {
+    dispatchDragStart(rows[1]);
+    dispatchDragEnd(rows[1]);
+    expect(component.store.draggedItemId()).toBeNull();
+
+    // A later, unrelated drag is set directly in the store. The previous
+    // drag's mouseup listener must already be gone, so it cannot clobber it.
+    component.store.setDragState('file-b', null, null);
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(component.store.draggedItemId()).toBe('file-b');
   });
 
   // ----- dragover position math ---------------------------------------------

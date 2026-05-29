@@ -54,6 +54,14 @@ export class NgxTreeRowDirective implements OnInit {
   private platformId = inject(PLATFORM_ID);
 
   private dragGhostEl: HTMLElement | null = null;
+  // rAF handle for removing the ghost one frame after dragstart, once the
+  // browser has snapshotted it into the drag-image bitmap. Tracked so an
+  // early teardown / destroy can cancel a still-pending removal.
+  private dragGhostCleanupRaf: number | null = null;
+  // Detaches the drag teardown safety-net listeners registered on dragstart.
+  // Non-null only while this row is the active drag source; calling it is
+  // idempotent via endDrag().
+  private detachDragEndListeners: (() => void) | null = null;
   // Timestamp of when the cursor first entered this row's "inside" zone
   // during the current drag. Used for timestamp-diff spring-load instead
   // of a setTimeout — cancellation is implicit (cleared on dragleave).
@@ -119,6 +127,9 @@ export class NgxTreeRowDirective implements OnInit {
         el.removeEventListener('dragover', onDragOver);
         el.removeEventListener('dragleave', onDragLeave);
         el.removeEventListener('drop', onDrop);
+        // If the row is destroyed mid-drag (e.g. virtual-scroll recycling),
+        // tear down the active drag so listeners and the ghost don't leak.
+        this.endDrag();
         this.removeDragGhost();
       });
     });
@@ -151,24 +162,75 @@ export class NgxTreeRowDirective implements OnInit {
       this.dragGhostEl = ghost;
 
       event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
+
+      // The browser snapshots the drag image into a bitmap during this event;
+      // the DOM node is dead weight afterwards. Drop it on the next frame so it
+      // never lives through the drag — there is nothing to leak even if every
+      // teardown path is missed. Deferring one frame (vs. removing inline) is
+      // deliberate: removing within the same dragstart tick can blank the image
+      // in Firefox/Safari, which capture slightly later than Blink.
+      this.dragGhostCleanupRaf = requestAnimationFrame(() => {
+        this.dragGhostCleanupRaf = null;
+        this.removeDragGhost();
+      });
     }
 
     this.ngZone.run(() => {
       this.store.setDragState(this.item().id, null, null);
     });
 
-    // Bind dragend on the source so cleanup is reliable even when the drop
-    // happens outside the viewport — and virtual scroll can't recycle this
-    // element before the drag ends, since it's the active drag source.
-    const onDragEnd = () => {
-      this.removeDragGhost();
-      sourceEl.removeEventListener('dragend', onDragEnd);
-      this.springLoadHoverStartedAt = null;
-      if (this.store.draggedItemId() !== null) {
-        this.ngZone.run(() => this.store.clearDragState());
-      }
+    this.attachDragEndSafetyNet(sourceEl);
+  }
+
+  // Wire up drag teardown. `dragend` is the happy path, but it is NOT
+  // guaranteed to fire: pausing in the debugger during `dragstart`, the
+  // source element being detached mid-drag (e.g. a PrimeNG overlay/popover
+  // re-rendering or virtual-scroll recycling), or an OS-level drag cancel can
+  // all swallow it. When that happens the row stays stuck with the
+  // `--dragging` class (grayed out), the ghost leaks, and the tree believes a
+  // drag is still in progress — freezing further interaction.
+  //
+  // So we don't rely on `dragend` alone. During a real native drag the browser
+  // suppresses mouse events, so a `mouseup`/`pointerup` reaching us means the
+  // drag never truly armed (or already ended) — a safe signal to recover.
+  // (A native drag cancelled with Escape still fires `dragend`, so that case
+  // is already covered.) Document-level `dragend`/`drop` (capture) still fire
+  // even if the source element is recycled out from under us. Every listener
+  // is removed the moment teardown runs, so nothing leaks between drags.
+  private attachDragEndSafetyNet(sourceEl: HTMLElement) {
+    // Defensively clear any stale set from a prior drag before re-arming.
+    this.detachDragEndListeners?.();
+
+    const teardown = () => this.endDrag();
+
+    sourceEl.addEventListener('dragend', teardown);
+    document.addEventListener('dragend', teardown, true);
+    document.addEventListener('drop', teardown, true);
+    document.addEventListener('mouseup', teardown, true);
+    document.addEventListener('pointerup', teardown, true);
+
+    this.detachDragEndListeners = () => {
+      sourceEl.removeEventListener('dragend', teardown);
+      document.removeEventListener('dragend', teardown, true);
+      document.removeEventListener('drop', teardown, true);
+      document.removeEventListener('mouseup', teardown, true);
+      document.removeEventListener('pointerup', teardown, true);
     };
-    sourceEl.addEventListener('dragend', onDragEnd);
+  }
+
+  // Idempotent drag teardown: detach the safety-net listeners, drop the ghost,
+  // reset spring-load, and clear the global drag state. Safe to call from any
+  // of the (possibly several) teardown triggers — the first call wins and the
+  // rest no-op because `detachDragEndListeners` is nulled out.
+  private endDrag() {
+    if (!this.detachDragEndListeners) return; // already torn down / not dragging
+    this.detachDragEndListeners();
+    this.detachDragEndListeners = null;
+    this.removeDragGhost();
+    this.springLoadHoverStartedAt = null;
+    if (this.store.draggedItemId() !== null) {
+      this.ngZone.run(() => this.store.clearDragState());
+    }
   }
 
   private handleDragOver(event: DragEvent) {
@@ -263,6 +325,13 @@ export class NgxTreeRowDirective implements OnInit {
   }
 
   private removeDragGhost() {
+    // Cancel a pending one-frame removal so it can't fire against a stale
+    // handle. (No-op when called from inside that rAF — it nulls the handle
+    // first.)
+    if (this.dragGhostCleanupRaf !== null) {
+      cancelAnimationFrame(this.dragGhostCleanupRaf);
+      this.dragGhostCleanupRaf = null;
+    }
     if (this.dragGhostEl) {
       this.dragGhostEl.remove();
       this.dragGhostEl = null;
