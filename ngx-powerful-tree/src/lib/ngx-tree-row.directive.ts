@@ -54,6 +54,10 @@ export class NgxTreeRowDirective implements OnInit {
   private platformId = inject(PLATFORM_ID);
 
   private dragGhostEl: HTMLElement | null = null;
+  // rAF handle for removing the ghost one frame after dragstart, once the
+  // browser has snapshotted it into the drag-image bitmap. Tracked so an
+  // early teardown / destroy can cancel a still-pending removal.
+  private dragGhostCleanupRaf: number | null = null;
   // Detaches the drag teardown safety-net listeners registered on dragstart.
   // Non-null only while this row is the active drag source; calling it is
   // idempotent via endDrag().
@@ -158,6 +162,17 @@ export class NgxTreeRowDirective implements OnInit {
       this.dragGhostEl = ghost;
 
       event.dataTransfer.setDragImage(ghost, event.clientX - rect.left, event.clientY - rect.top);
+
+      // The browser snapshots the drag image into a bitmap during this event;
+      // the DOM node is dead weight afterwards. Drop it on the next frame so it
+      // never lives through the drag — there is nothing to leak even if every
+      // teardown path is missed. Deferring one frame (vs. removing inline) is
+      // deliberate: removing within the same dragstart tick can blank the image
+      // in Firefox/Safari, which capture slightly later than Blink.
+      this.dragGhostCleanupRaf = requestAnimationFrame(() => {
+        this.dragGhostCleanupRaf = null;
+        this.removeDragGhost();
+      });
     }
 
     this.ngZone.run(() => {
@@ -310,6 +325,13 @@ export class NgxTreeRowDirective implements OnInit {
   }
 
   private removeDragGhost() {
+    // Cancel a pending one-frame removal so it can't fire against a stale
+    // handle. (No-op when called from inside that rAF — it nulls the handle
+    // first.)
+    if (this.dragGhostCleanupRaf !== null) {
+      cancelAnimationFrame(this.dragGhostCleanupRaf);
+      this.dragGhostCleanupRaf = null;
+    }
     if (this.dragGhostEl) {
       this.dragGhostEl.remove();
       this.dragGhostEl = null;
