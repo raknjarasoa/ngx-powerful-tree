@@ -327,10 +327,17 @@ export class FolderTreeComponent {
     // Populate relocation tree with only folders, excluding locked subtrees so
     // they can't be chosen as destinations.
     const all = expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds());
-    this.pickerNodes.set(this.stripLocked(all));
+    const nodes = this.stripLocked(all);
+    this.pickerNodes.set(nodes);
     this.movingItemId.set(id);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(true);
+    // The @defer block keeps the picker instance alive across close/reopen, and
+    // the tree only seeds its store from the `nodes` input on first render —
+    // later emissions are ignored by design. Without an explicit reload the
+    // overlay would keep showing the structure captured the first time it
+    // opened. Reload so a reopened overlay reflects the current main tree.
+    this.pickerTree()?.reload(nodes);
   }
 
   private stripLocked(nodes: NgxTreeNode[]): NgxTreeNode[] {
