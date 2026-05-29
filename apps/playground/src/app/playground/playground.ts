@@ -31,6 +31,7 @@ export class PlaygroundComponent {
   private platformId = inject(PLATFORM_ID);
   private destroyRef = inject(DestroyRef);
   primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
+  pickerTree = viewChild<NgxPowerfulTree>('pickerTree');
 
   // --- Tree input signals ---
   treeNodes = signal<NgxTreeNode[]>([]);
@@ -248,6 +249,18 @@ export class PlaygroundComponent {
 
   onItemDeleted(id: string) {}
 
+  // Latest full folder/file structure emitted by the tree, plus how many times
+  // it has changed since load. In a real app this is where you'd persist the
+  // new structure back to the server (debounced).
+  latestStructure = signal<NgxTreeNode[] | null>(null);
+  structureChangeCount = signal(0);
+
+  onStructureChanged(structure: NgxTreeNode[]) {
+    this.latestStructure.set(structure);
+    this.structureChangeCount.update((n) => n + 1);
+    console.log('Structure changed:', structure);
+  }
+
   onSelectionChanged(selected: string[]) {
     this.selectedIds.set(selected);
   }
@@ -277,11 +290,17 @@ export class PlaygroundComponent {
   onMoveRequested(id: string) {
     const tree = this.primaryTree();
     if (!tree) return;
-    this.pickerNodes.set(expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds()));
+    const nodes = expandItems(tree.store.getAllItemsAsRecord(), tree.store.getRootIds());
+    this.pickerNodes.set(nodes);
     this.movingItemId.set(id);
     this.targetFolderId.set(null);
     this.overlaySearchQuery.set('');
     this.isMoveOverlayOpen.set(true);
+    // The @defer block keeps the picker instance alive across close/reopen, and
+    // the tree only seeds its store from the `nodes` input on first render —
+    // later emissions are ignored by design. Reload so a reopened overlay
+    // reflects the current main tree instead of the stale first snapshot.
+    this.pickerTree()?.reload(nodes);
   }
 
   onDestinationSelected(selected: string[]) {

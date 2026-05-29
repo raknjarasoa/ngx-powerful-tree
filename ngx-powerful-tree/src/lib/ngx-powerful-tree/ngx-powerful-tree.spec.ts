@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NgZone } from '@angular/core';
 import { vi } from 'vitest';
 import { NgxPowerfulTree } from './ngx-powerful-tree';
+import { NgxTreeNode } from '../ngx-tree.types';
 
 describe('NgxPowerfulTree', () => {
   let component: NgxPowerfulTree;
@@ -151,5 +152,103 @@ describe('NgxPowerfulTree', () => {
 
     // Bursts collapse into a single rAF tick; nothing has fired yet here.
     expect(runSpy.mock.calls.length).toBeLessThan(3);
+  });
+
+  it('getStructure() returns the current nested NgxTreeNode structure', async () => {
+    component.reload([
+      {
+        id: 'a',
+        name: 'A',
+        isFolder: true,
+        children: [{ id: 'b', name: 'B', isFolder: false }],
+      },
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const structure = component.getStructure();
+    expect(structure).toEqual([
+      {
+        id: 'a',
+        name: 'A',
+        isFolder: true,
+        children: [{ id: 'b', name: 'B', isFolder: false, children: undefined }],
+        data: undefined,
+        locked: undefined,
+        icon: undefined,
+      },
+    ]);
+  });
+
+  it('does not emit structureChanged when emitStructureChanges is false', async () => {
+    const emitted: any[] = [];
+    component.structureChanged.subscribe((s) => emitted.push(s));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.store.addItem(null, { id: 'x', name: 'X', isFolder: true, children: [] });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(emitted.length).toBe(0);
+  });
+
+  it('emits structureChanged with the full structure on changes (not the initial seed)', async () => {
+    fixture.componentRef.setInput('emitStructureChanges', true);
+    const emitted: NgxTreeNode[][] = [];
+    component.structureChanged.subscribe((s) => emitted.push(s));
+
+    component.reload([{ id: 'root', name: 'Root', isFolder: true, children: [] }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    // The seed/baseline is not emitted.
+    expect(emitted.length).toBe(0);
+
+    component.store.addItem('root', { id: 'child', name: 'Child', isFolder: false });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(emitted.length).toBe(1);
+    expect(emitted[0]).toEqual([
+      {
+        id: 'root',
+        name: 'Root',
+        isFolder: true,
+        children: [
+          {
+            id: 'child',
+            name: 'Child',
+            isFolder: false,
+            children: undefined,
+            data: undefined,
+            locked: undefined,
+            icon: undefined,
+          },
+        ],
+        data: undefined,
+        locked: undefined,
+        icon: undefined,
+      },
+    ]);
+  });
+
+  it('coalesces multiple synchronous mutations into a single structureChanged emission', async () => {
+    fixture.componentRef.setInput('emitStructureChanges', true);
+    component.reload([{ id: 'root', name: 'Root', isFolder: true, children: [] }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const emitted: NgxTreeNode[][] = [];
+    component.structureChanged.subscribe((s) => emitted.push(s));
+
+    // Three mutations in the same tick should collapse into one emission.
+    component.store.addItem('root', { id: 'c1', name: 'C1', isFolder: false });
+    component.store.addItem('root', { id: 'c2', name: 'C2', isFolder: false });
+    component.store.addItem('root', { id: 'c3', name: 'C3', isFolder: false });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(emitted.length).toBe(1);
+    expect(emitted[0][0].children?.map((c) => c.id).sort()).toEqual(['c1', 'c2', 'c3']);
   });
 });

@@ -87,7 +87,10 @@
 .ngx-tree-row-wrapper::after {
   content: '';
   position: absolute;
-  left: 8px;
+  /* Indent the marker to the row's own depth so an "after" line on a deep
+     last-child and a "before" line on the shallower next row are visually
+     distinct (matches the row padding step of 1.25rem per depth). */
+  left: calc(8px + var(--ngx-tree-depth, 0) * 1.25rem);
   right: 8px;
   height: 2px;
   background-color: var(--ngx-tree-drag-border);
