@@ -1,9 +1,12 @@
 import { CommonModule } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
+  inject,
+  Injector,
   input,
   output,
   signal,
@@ -32,6 +35,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FolderTreeComponent {
+  private injector = inject(Injector);
   primaryTree = viewChild<NgxPowerfulTree>('primaryTree');
   pickerTree = viewChild<NgxPowerfulTree>('pickerTree');
 
@@ -88,28 +92,32 @@ export class FolderTreeComponent {
     const tree = this.primaryTree();
     if (!tree) return;
 
-    const trySelect = () => {
-      const item = tree.store.getItem(fileId);
-      if (item) {
-        tree.store.selectItem(fileId, false);
-        let parentId = tree.store.getParentId(fileId);
-        while (parentId) {
-          tree.store.setExpanded(parentId, true);
-          parentId = tree.store.getParentId(parentId);
-        }
-        // Force scroll calculation to center pre-selected items in virtual scroll viewport
+    const item = tree.store.getItem(fileId);
+    if (!item) return;
+
+    // Select + expand ancestors synchronously — these are pure signal updates,
+    // so the flattened list is final by the time the next render runs.
+    tree.store.selectItem(fileId, false);
+    let parentId = tree.store.getParentId(fileId);
+    while (parentId) {
+      tree.store.setExpanded(parentId, true);
+      parentId = tree.store.getParentId(parentId);
+    }
+
+    // Scroll once, after the viewport has rendered the now-expanded list, so
+    // the index is final and the CDK viewport has measured. This replaces the
+    // old immediate + setTimeout(150) double-run, which re-did the selection
+    // and scroll on a guessed delay.
+    afterNextRender(
+      () => {
         const { indexById } = tree.store.flattenedStructure();
         const idx = indexById[fileId];
         if (idx !== undefined && idx >= 0) {
           (tree as any).scrollToIndex(idx);
         }
-      }
-    };
-
-    // Run immediately
-    untracked(() => trySelect());
-    // Schedule a small delay to handle async virtual scroll / flattening ticks
-    setTimeout(() => untracked(() => trySelect()), 150);
+      },
+      { injector: this.injector }
+    );
   }
 
   constructor() {
