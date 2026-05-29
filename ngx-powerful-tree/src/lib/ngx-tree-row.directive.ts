@@ -178,25 +178,21 @@ export class NgxTreeRowDirective implements OnInit {
   // So we don't rely on `dragend` alone. During a real native drag the browser
   // suppresses mouse events, so a `mouseup`/`pointerup` reaching us means the
   // drag never truly armed (or already ended) — a safe signal to recover.
-  // Escape covers keyboard cancels. Document-level `dragend`/`drop` (capture)
-  // still fire even if the source element is recycled out from under us. Every
-  // listener is removed the moment teardown runs, so nothing leaks between
-  // drags.
+  // (A native drag cancelled with Escape still fires `dragend`, so that case
+  // is already covered.) Document-level `dragend`/`drop` (capture) still fire
+  // even if the source element is recycled out from under us. Every listener
+  // is removed the moment teardown runs, so nothing leaks between drags.
   private attachDragEndSafetyNet(sourceEl: HTMLElement) {
     // Defensively clear any stale set from a prior drag before re-arming.
     this.detachDragEndListeners?.();
 
     const teardown = () => this.endDrag();
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.endDrag();
-    };
 
     sourceEl.addEventListener('dragend', teardown);
     document.addEventListener('dragend', teardown, true);
     document.addEventListener('drop', teardown, true);
     document.addEventListener('mouseup', teardown, true);
     document.addEventListener('pointerup', teardown, true);
-    document.addEventListener('keydown', onKeydown, true);
 
     this.detachDragEndListeners = () => {
       sourceEl.removeEventListener('dragend', teardown);
@@ -204,7 +200,6 @@ export class NgxTreeRowDirective implements OnInit {
       document.removeEventListener('drop', teardown, true);
       document.removeEventListener('mouseup', teardown, true);
       document.removeEventListener('pointerup', teardown, true);
-      document.removeEventListener('keydown', onKeydown, true);
     };
   }
 

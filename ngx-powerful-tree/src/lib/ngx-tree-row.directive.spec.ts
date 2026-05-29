@@ -152,14 +152,6 @@ describe('NgxTreeRowDirective', () => {
     expect(component.store.draggedItemId()).toBeNull();
   });
 
-  it('recovers stuck drag state on Escape keydown', () => {
-    dispatchDragStart(rows[1]);
-    expect(component.store.draggedItemId()).toBe('file-a');
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(component.store.draggedItemId()).toBeNull();
-  });
-
   it('detaches recovery listeners after teardown (no cross-drag leakage)', () => {
     dispatchDragStart(rows[1]);
     dispatchDragEnd(rows[1]);
